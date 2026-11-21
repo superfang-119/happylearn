@@ -152,6 +152,8 @@
     });
   }
   document.addEventListener('click', event => {
+    if(event.target.closest('[data-return-learn]')) return window.LearnRoutes.openLearn();
+    if(event.target.closest('[data-city-open]')) return window.LearnRoutes.openCity();
     const counter = event.target.closest('[data-harbor-open]');
     if (counter) return window.HarborShop.open(counter.dataset.harborOpen);
     const target = event.target.closest('[data-do],[data-region]');

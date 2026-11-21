@@ -10,6 +10,7 @@ const noop = () => {};
 
 function createStreet(software) {
   let pending, clock = 0, snapshot, renderedColor;
+  const actorColors=new Set();
   const listeners = new Map();
   const canvas = () => ({
     style:{}, getContext:() => ({}), setAttribute:noop, remove:noop,
@@ -20,13 +21,15 @@ function createStreet(software) {
     addEventListener:(type, fn) => listeners.set(type,fn),
     removeEventListener:type => listeners.delete(type),
     CityPerspective:{create:() => ({
-      render(state){ renderedColor=state.carColor; return true; }, dispose:noop
+      render(state){ renderedColor=state.carColor; actorColors.clear();actorColors.add(state.coatColor);actorColors.add(state.capColor);return true; }, dispose:noop
     })},
     CityWorld:{build:noop,places:{}},
     THREE:{...three, WebGLRenderer:class {
       constructor(){ this.domElement=canvas(); } setPixelRatio(){} setSize(){} dispose(){}
       render(scene){
-        scene.traverse(mesh => {
+        actorColors.clear();
+        scene.traverseVisible(mesh => {
+          if(mesh.material?.color)actorColors.add('#'+mesh.material.color.getHexString());
           if(mesh.material?.metalness===.23) {
             const color=mesh.material.color.getHexString();
             if(color==='f5398d') renderedColor='#'+color;
@@ -46,7 +49,7 @@ function createStreet(software) {
     for(let i=0;i<count;i++){clock+=1000/60;pending(clock);}
     return snapshot;
   }, key(code,down){ const type=down?'keydown':'keyup';listeners.get(type)({type,code,preventDefault:noop}); },
-  color:()=>renderedColor};
+  color:()=>renderedColor, actorColors};
 }
 
 for(const software of [false,true]) {
@@ -69,5 +72,20 @@ for(const software of [false,true]) {
     const standard=drive(false),sport=drive(true);
     assert.ok(standard.speed>20);
     assert.equal(sport.speed,standard.speed);assert.equal(sport.z,standard.z);
+  });
+}
+
+for(const software of [false,true]) {
+  test((software?'Canvas':'Three.js')+' shows the equipped outfit on foot and while driving', () => {
+    const s=createStreet(software);
+    const first=['#51638f','#8fa8ba'], second=['#367e67','#428268'];
+    s.engine.setOutfit(...first);s.tick(8);
+    assert.ok(first.every(color=>s.actorColors.has(color)));
+    assert.ok(s.engine.interactVehicle());s.tick(8);
+    assert.ok(first.every(color=>s.actorColors.has(color)));
+    s.engine.setOutfit(...second);s.tick(8);
+    assert.ok(second.every(color=>s.actorColors.has(color)));
+    assert.ok(first.every(color=>!s.actorColors.has(color)));
+    s.engine.dispose();
   });
 }

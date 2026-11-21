@@ -105,3 +105,9 @@ dialog::backdrop{background:#080d16c9;backdrop-filter:blur(4px)}
 .hub-shop-label{font-size:12px;color:var(--mint);margin-left:2px}
 .hub-quest-links{display:flex;align-items:center;gap:18px}
 @media(max-width:580px){.hub-quest-links{gap:10px}.hub-quest-links .expedition{font-size:12px}.top-tools{gap:8px}.hub-shop-label{font-size:11px}}
+
+body.in-learn>.topbar,body.in-learn>.hub,body.in-learn>.skip,
+body:not(.in-learn)>#learn-home,#learn-home[hidden]{display:none}
+.hub-return{color:var(--mint)}
+@media(max-width:880px) and (min-width:721px){.top-inner{gap:14px}.main-nav{gap:10px}.top-tools{gap:7px}.main-nav .nav-item{font-size:13px}}
+@media(max-width:450px){.main-nav{justify-content:space-between;gap:5px}.main-nav .nav-item{gap:3px;font-size:12px}}

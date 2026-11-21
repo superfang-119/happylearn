@@ -194,7 +194,8 @@
     }
   }
   const shopPaint = {id:'paint', livery:'霓虹玫红车漆', color:'#f5398d'};
-  let appliedEngine = null, appliedColor = null, appliedShoes = null;
+  let appliedEngine = null, appliedColor = null, appliedShoes = null, appliedOutfit = null;
+  let interruptedPosition = null;
   function selectedPaint(inventory,completed) {
     if(inventory?.owned?.includes('paint') && inventory.equipped?.paint) return shopPaint;
     return completed.includes(prefs.paint) ? contracts.find(j=>j.id===prefs.paint) : null;
@@ -205,8 +206,14 @@
     const shoes = Boolean(inventory?.owned?.includes('shoes') && inventory.equipped?.shoes);
     if(engine!==appliedEngine || hex!==appliedColor) engine.setDrivingColor(hex);
     if(engine!==appliedEngine || shoes!==appliedShoes) engine.setRunningShoes(shoes);
+    const outfit = window.LearnWardrobe?.avatar();
+    if (outfit && (engine!==appliedEngine || appliedOutfit!==outfit.id)) {
+      engine.setOutfit?.(outfit.coat,outfit.cap);
+      appliedOutfit=outfit.id;
+    }
     appliedEngine=engine;appliedColor=hex;appliedShoes=shoes;
   }
+  window.addEventListener('learn-outfit-change',()=>applyEquipment());
   window.Game?.subscribe(inventory=>{
     applyEquipment(inventory);
     if(visible && phone.open && app==='garage') renderPhone();
@@ -214,22 +221,25 @@
   function enter() {
     if(visible) return;
     visible = true;
-    document.body.classList.add('in-port');city.hidden=false;city.focus({preventScroll:true});
+    city.hidden=false;city.focus({preventScroll:true});
     if(!engine){
+      const createSoftwareEngine=()=>{
+        engine=window.CityMap.createFallback(scene,{onFrame:frame,onInteract:interact,initialState:interruptedPosition});
+        interruptedPosition=null;
+      };
       const hooks = {onFrame:frame,onInteract:interact,onContextLost:()=>{
         if(method!=='3d')return;
-        const last = {...player};
-        method='software';
-        engine?.dispose();scene.replaceChildren();
-        engine=window.CityMap.createFallback(scene,{onFrame:frame,onInteract:interact,initialState:last});
-        applyEquipment();setPaused();syncMarkers();renderTask();refreshHUD();
+        interruptedPosition={...player};method='software';
+        engine?.dispose();engine=null;scene.replaceChildren();
+        // A lost background context is recreated when the learner returns to the port.
+        if(!visible)return;
+        createSoftwareEngine();applyEquipment();setPaused();syncMarkers();renderTask();refreshHUD();
       }};
-      try{engine=window.CityEngine.create(scene,hooks);}
+      if(method==='software')createSoftwareEngine();
+      else try{engine=window.CityEngine.create(scene,hooks);}
       catch(error){
         console.info('Using the compatible city renderer.',error);
-        method='software';
-        scene.replaceChildren();
-        engine=window.CityMap.createFallback(scene,{onFrame:frame,onInteract:interact});
+        method='software';scene.replaceChildren();createSoftwareEngine();
       }
       if(!prefs.visited && !jobs.current() && !jobs.getState().completed.length) jobs.start('city-english');
       prefs.visited = true;persist();
@@ -237,12 +247,47 @@
     applyEquipment();setPaused();syncMarkers();renderTask();refreshHUD();
 
   }
-  function leave() {
-    if(phone.open) phone.close();
-    visible=false;setPaused();city.hidden=true;
-    document.body.classList.remove('in-port');
-    $('[data-city-open]').focus({preventScroll:true});
+  const learnRoot = $('#learn-home'), classicHub = $('#home');
+  const classicNav = $('.topbar'), skipToWorlds = $('.skip');
+  let currentScreen = 'learn', lastLearnControl = null;
+  function setPageVisibility(screen) {
+    document.body.classList.toggle('in-learn',screen==='learn');
+    document.body.classList.toggle('in-port',screen==='city');
+    if(learnRoot)learnRoot.hidden=screen!=='learn';
+    classicHub.hidden=screen!=='hub';
+    classicNav.hidden=screen!=='hub';
+    if(skipToWorlds)skipToWorlds.hidden=screen!=='hub';
+    city.hidden=screen!=='city';
   }
+  function changeScreen(next) {
+    if(currentScreen===next)return;
+    const previous=currentScreen;
+    if(previous==='learn'){
+      if(learnRoot?.contains(document.activeElement))lastLearnControl=document.activeElement;
+      window.LearnHome?.close?.();
+    }
+    if(previous==='city'){
+      visible=false;
+      setPaused();
+    }
+    for(const modal of document.querySelectorAll('dialog[open]'))modal.close();
+    currentScreen=next;
+    setPageVisibility(next);
+    if(next==='city'){
+      enter();
+    }else if(next==='learn'){
+      window.LearnHome?.open?.();
+      const target=lastLearnControl?.isConnected && !lastLearnControl.closest('[hidden]') ? lastLearnControl : learnRoot;
+      if(target===learnRoot && learnRoot)learnRoot.tabIndex=-1;
+      target?.focus({preventScroll:true});
+    }else{
+      const selector=previous==='city'?'[data-city-open]':'[data-do="start"]';
+      classicHub.querySelector(selector)?.focus({preventScroll:true});
+    }
+  }
+  window.LearnRoutes=Object.freeze({
+    openHub:()=>changeScreen('hub'), openCity:()=>changeScreen('city'), openLearn:()=>changeScreen('learn')
+  });
   function openPhone(tab='jobs', opener=$('#port-phone-open')) {
     if(!visible)return;
     panelOpener = opener; app=tab;reward.hidden=true;
@@ -328,7 +373,7 @@
   $('#port-phone-close').onclick=closePhone;
   $('#port-phone-open').onclick=()=>openPhone();
   $('#port-radar-open').onclick=()=>openPhone('map',$('#port-radar-open'));
-  $('#port-leave').onclick=leave;
+  $('#port-leave').onclick=window.LearnRoutes.openHub;
   $('#port-action').onclick=interact;
   $('#port-hint').onclick=()=>{const h=jobs.hint();cityHint=h.message;syncMarkers();renderTask();};
   $('#port-reward-next').onclick=()=>{
@@ -340,7 +385,6 @@
   $('#port-reward-dismiss').onclick=()=>{reward.hidden=true;city.focus();};
   $('#port-controls').onclick=e=>{const on=city.classList.toggle('show-pad');e.currentTarget.setAttribute('aria-pressed',String(on));};
   radio.onchange=()=>{audioReady=true;prefs.station=radio.value;persist();window.CityAudio?.setStation(radio.value);window.CityAudio?.unlock?.();city.focus({preventScroll:true});};
-  $('[data-city-open]').onclick=enter;
   function releaseTouch(){
     heldPointers.forEach(({key,button})=>{engine?.setInput(key,false);button.classList.remove('held');});
     heldPointers.clear();
@@ -360,12 +404,19 @@
   });
   window.addEventListener('blur',releaseTouch);
   window.addEventListener('keydown',e=>{
-    if(!visible||$('#harbor-shop').open||e.ctrlKey||e.altKey||e.metaKey||e.repeat||e.target.matches?.('input,select,textarea'))return;
+    if(e.defaultPrevented||e.ctrlKey||e.altKey||e.metaKey||e.repeat||e.isComposing)return;
+    if((e.key==='Escape'||e.code==='Escape') && currentScreen!=='learn' && !document.querySelector('dialog[open]')){
+      e.preventDefault();
+      if(visible&&!reward.hidden){reward.hidden=true;city.focus({preventScroll:true});}
+      else window.LearnRoutes.openLearn();
+      return;
+    }
+    if(!visible||$('#harbor-shop').open||e.target.matches?.('input,select,textarea'))return;
     if(e.code==='KeyM'){e.preventDefault();if(phone.open)closePhone();else openPhone('map');}
   });
   window.addEventListener('harbor-shop-visibility',setPaused);
   document.addEventListener('visibilitychange',setPaused);
   window.addEventListener('pagehide',()=>{rally.freeze();engine?.pause(true);window.CityAudio?.setPaused(true);});
   window.addEventListener('pageshow',setPaused);
-  enter();
+  setPageVisibility(currentScreen);
 })();

@@ -309,7 +309,7 @@
       }
       return {face,cub,finish(){faces.sort((a,b)=>b.d-a.d);for(const m of faces)poly(m.v,m.color);}};
     }
-    function car(x,z,angle,col,driver,sedan=false){
+    function car(x,z,angle,col,driver,sedan=false,outfit=null){
       const toWorld=worldPoint(x,z,angle),mesh=actorMesh(toWorld),{cub,face}=mesh;
       const body=col||'#d99071',shade=tinted(body,-.27),light=tinted(body,.18),top=tinted(body,.28);
       cub(0,.36,.02,1.87,.40,3.95,[shade,body,shade,body]);
@@ -348,9 +348,9 @@
         cub(side*.43,1.15,.25,.34,.16,.19,['#bc9585','#cba28f','#9b7976','#dab99d']);
       }
       if(driver){
-        cub(-.43,1.04,-.014,.38,.31,.29,['#4a7e8a','#62909a','#38606f','#739797']);
+        cub(-.43,1.04,-.014,.38,.31,.29,outfit ? [outfit.coatColor] : ['#4a7e8a','#62909a','#38606f','#739797']);
         cub(-.43,1.31,-.021,.27,.24,.23,['#c28d78','#dfac8e','#bd8673','#deb399']);
-        cub(-.43,1.50,-.014,.29,.10,.25,['#504957','#5a505c','#403b4a','#66606c']);
+        cub(-.43,1.50,-.014,.29,.10,.25,outfit ? [outfit.capColor] : ['#504957','#5a505c','#403b4a','#66606c']);
       }
       if(sedan){
         cub(0,1.31,.1,1.56,.16,1.52,[light,body,shade,top]);
@@ -358,7 +358,7 @@
       }
       mesh.finish();
     }
-    function figure(x,z,angle,phase,coat='#e8a36e',hero=false){
+    function figure(x,z,angle,phase,coat='#e8a36e',hero=false,cap='#e8a83b'){
       const toWorld=worldPoint(x,z,angle),mesh=actorMesh(toWorld),{cub}=mesh;
       const stride=Math.sin(phase)*.21, jacket=[coat,tinted(coat,.18),tinted(coat,-.20),tinted(coat,.24)];
       const pants=['#424f62','#52657a','#374859','#637485'], skin=['#ca9280','#e5ae8e','#b98073','#edbd99'];
@@ -379,10 +379,10 @@
       cub(0,1.41,-.018,.32,.33,.285,skin);
       cub(0,1.65,.009,.345,.14,.31,['#4c4b55','#68555c','#403e4a','#63555c']);
       if(hero){
-        cub(0,1.72,-.012,.39,.13,.35,['#d98d71','#e8a17a','#b8796d','#f1b887']);
+        cub(0,1.72,-.012,.39,.13,.35,[cap,tinted(cap,.16),tinted(cap,-.18),tinted(cap,.23)]);
         cub(0,1.73,.173,.17,.035,.025,['#6e6266']);
         cub(0,1.745,.191,.065,.022,.012,['#edd7ad']);
-        cub(0,1.73,-.206,.36,.046,.13,['#efd09c']);
+        cub(0,1.73,-.206,.36,.046,.13,[tinted(cap,.18)]);
         for(const side of [-1,1])cub(side*.169,1.04,.166,.049,.27,.025,['#4e7482']);
         cub(0,.88,.201,.34,.38,.18,['#476b79','#5d8890','#355462','#789996']);
         cub(0,.90,.305,.28,.18,.048,['#5b8a90','#739e9f','#486f7b','#86aba6']);
@@ -429,10 +429,10 @@
       for(const b of fixed)if(visible(b.x,b.z,b.r))items.push(b);
       const carX=Number.isFinite(s.carX)?s.carX:4,carZ=Number.isFinite(s.carZ)?s.carZ:0;
       addShadow(carX,carZ,1.17,2.2);
-      push(carX,carZ,2.4,()=>car(carX,carZ,s.carHeading??(s.driving?s.heading:0),s.carColor||'#ee9968',s.driving));
+      push(carX,carZ,2.4,()=>car(carX,carZ,s.carHeading??(s.driving?s.heading:0),s.carColor||'#ee9968',s.driving,false,s.coatColor&&s.capColor?s:null));
       if(!s.driving){
         addShadow(s.x,s.z,.39,.44);
-        push(s.x,s.z,1.25,()=>figure(s.x,s.z,s.heading,s.walk||0,'#ecad79',true));
+        push(s.x,s.z,1.25,()=>figure(s.x,s.z,s.heading,s.walk||0,s.coatColor||'#1e968e',true,s.capColor));
       }
       for(const m of targets){
         if(!Number.isFinite(m?.x)||!Number.isFinite(m?.z)||!visible(m.x,m.z,3.2,100))continue;

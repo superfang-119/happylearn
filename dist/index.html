@@ -4,16 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#10141e">
-  <meta name="description" content="在拾光群岛探索英语、地理、历史和语文。驾驶跑车穿行海港小城，完成委托，收集知识卡。">
-  <title>日落港 · 拾光群岛</title>
+  <meta name="description" content="七年级上册四科轻松学。每轮练三道题，读线索、选答案、换个情境记住知识。">
+  <title>快乐学 · 四科轻松学</title>
   <link rel="icon" type="image/png" href="art/logo.png">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="game.css">
   <link rel="stylesheet" href="city.css">
   <link rel="stylesheet" href="shop.css">
+  <link rel="stylesheet" href="learn.css">
+  <link rel="stylesheet" href="learn-trail.css">
+  <link rel="stylesheet" href="wardrobe.css">
   <script src="content.js" defer></script>
   <script src="game.js" defer></script>
   <script src="shop.js" defer></script>
+  <script src="learn-facts.js" defer></script>
+  <script src="learn-round.js" defer></script>
+  <script src="learn-trail.js" defer></script>
+  <script src="wardrobe.js" defer></script>
+  <script src="learn.js" defer></script>
   <script src="hub.js" defer></script>
   <script src="voice.js" defer></script>
   <script src="vendor/three.min.js" defer></script>
@@ -26,12 +34,16 @@
   <script src="city-rally.js" defer></script>
   <script src="city.js" defer></script>
 </head>
-<body>
+<body class="in-learn">
+  <main id="learn-home" tabindex="-1" aria-label="四科学习">
+    <noscript>请在浏览器中开启 JavaScript，以便练习和保存学习进度。</noscript>
+  </main>
   <a class="skip" href="#worlds">跳到探索区域</a>
   <header class="topbar">
     <div class="top-inner shell">
       <a class="brand" href="#home" aria-label="快乐学，返回冒险大厅"><img src="art/logo.png" alt="" width="40" height="40"><span>快乐学<small>HAPPY LEARN</small></span></a>
       <nav class="main-nav" aria-label="主要导航">
+        <button type="button" class="nav-item hub-return" data-return-learn>回去学习</button>
         <button class="nav-item current" data-do="home" aria-current="page"><i data-icon="compass"></i>冒险大厅</button>
         <button class="nav-item" data-do="journal"><i data-icon="book"></i>知识图鉴</button>
         <button class="nav-item" data-do="awards"><i data-icon="award"></i>冒险勋章</button>
@@ -73,6 +85,7 @@
     <div class="port-top">
       <div class="port-sign"><span class="port-logo" aria-hidden="true">☀</span><div><small>拾光群岛</small><h1>日落港</h1></div></div>
       <div class="port-nav">
+        <button type="button" class="port-tool port-return-learn" data-return-learn>回去学习</button>
         <button id="port-phone-open" type="button" class="port-tool"><span aria-hidden="true">▤</span> 委托手机</button>
         <button id="port-leave" type="button" class="port-tool"><span aria-hidden="true">⌂</span> 群岛大厅</button>
       </div>
@@ -110,6 +123,8 @@
       <div id="phone-body" class="phone-body"></div>
     </dialog>
   </section>
+  <dialog id="learn-medals" aria-labelledby="learn-medals-title"></dialog>
+  <dialog id="learn-wardrobe" aria-labelledby="wardrobe-title"></dialog>
   <dialog id="harbor-shop" aria-labelledby="shop-title"></dialog>
   <dialog id="game-dialog" aria-label="群岛探险"></dialog>
   <dialog id="hub-dialog" aria-labelledby="help-title"><div class="guide-modal"><button class="close-help" data-do="close-guide" aria-label="关闭玩法指南">×</button><span class="manual-tag"><i data-icon="guide"></i> 探险手册</span><h2 id="help-title">第一次登岛</h2><ol><li><strong>选一座岛，去找线索</strong><p>点开喜欢的区域，再选一个短任务。跟着场景里的提示观察。</p></li><li><strong>试着行动，随时求助</strong><p>读完线索再做选择。遇到难题可以看提示，答错也能继续尝试。</p></li><li><strong>带走卡片，换个情境再想想</strong><p>完成任务即可收集知识卡。在「知识图鉴」里复习，每座岛各完成一个任务后还能开启跨岛远征。</p></li></ol><button class="gold-button" data-do="guide-start"><i data-icon="play"></i>出发探险</button></div></dialog>

@@ -1,0 +1,43 @@
+#learn-wardrobe {
+  --wd-ink:#eff4ed; --wd-soft:#b9c8c6; --wd-line:#42575a; --wd-mint:#a2e2c2;
+  color-scheme:dark; color:var(--wd-ink); background:#18272d;
+  width:min(43rem,calc(100% - 1.4rem)); max-height:calc(100dvh - 1.4rem);
+  overflow:auto; border:1px solid #667a76; border-radius:16px; padding:0;
+  box-shadow:0 20px 80px #070f18ad; font:500 1rem/1.5 system-ui,"Microsoft YaHei",sans-serif;
+}
+#learn-wardrobe::backdrop {background:#0c1924ba}
+#learn-wardrobe * {box-sizing:border-box}
+#learn-wardrobe button {font:inherit;cursor:pointer}
+#learn-wardrobe button:focus-visible {outline:3px solid #ffdc89;outline-offset:3px}
+.wd-head {display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem 1.2rem;border-bottom:1px solid var(--wd-line)}
+.wd-head h2 {margin:0;font-size:1.3rem;letter-spacing:.03em;color:var(--wd-ink)}
+.wd-close {background:#25373d;color:var(--wd-ink);border:1px solid var(--wd-line);border-radius:9px;min-width:42px;height:42px;font-size:1.5rem!important;line-height:1!important}
+.wd-body {padding:1rem 1.2rem 1.25rem;display:grid;grid-template-columns:minmax(0,.91fr) minmax(0,1.09fr);gap:1.1rem;align-items:start}
+.wd-detail h3 {margin:.8rem 0 .15rem;font-size:1.12rem;color:var(--wd-ink)}
+.wd-props,.wd-note {margin:0;color:var(--wd-soft);font-size:.9rem}
+.wd-note {margin:.6rem 0 .8rem;color:#e4e9da;min-height:2.7em}
+.wd-stage {
+  position:relative;display:grid;place-items:center;isolation:isolate;height:152px;overflow:hidden;
+  border:1px solid #667974;border-radius:10px;background-color:#294b47;
+  background-image:radial-gradient(ellipse at 50% 75%,#71987b8c,transparent 65%),repeating-linear-gradient(135deg,transparent 0 13px,#ffffff05 13px 14px);
+}
+.wd-courier {background-color:#593f37}.wd-starpilot {background-color:#35455b}.wd-leafcloak {background-color:#2c5849}
+.wd-stage::before {content:"";position:absolute;inset:0;opacity:.65;z-index:-1;background-image:radial-gradient(circle,#d4ba75 1px,transparent 1.3px),radial-gradient(circle,#bbd5be .9px,transparent 1.3px);background-size:37px 37px,47px 47px;background-position:3px 9px,25px 16px}
+.wd-plinth {position:absolute;width:102px;height:21px;bottom:15px;border-radius:50%;background:#273f45;border:2px solid #afbd90;box-shadow:0 4px #42615d,0 8px #213638;z-index:-1}
+.wd-stage img,.wd-card img {object-fit:contain;image-rendering:pixelated;max-width:100%}
+.wd-equip {min-height:43px;width:100%;border:1px solid #e4b76a;border-radius:8px;background:#f3ca78;color:#2d2820;font-weight:750!important;padding:.45rem .6rem}
+.wd-equip.wd-secondary {background:#2c4144;border-color:#74918a;color:#e4f4e8}
+.wd-equip:disabled {cursor:default!important;background:#293a3f;color:#b1c1bc;border-color:#4a6060}
+.wd-list {display:grid;gap:.53rem}
+.wd-card {display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:.6rem;text-align:left;padding:.46rem .58rem;color:var(--wd-ink);background:#213338;border:1px solid var(--wd-line);border-radius:9px;min-height:62px}
+.wd-card:hover {background:#2d4142}.wd-card[aria-pressed="true"] {border-color:#9edbb9;background:#2c4443;box-shadow:inset 3px 0 #a7e5c5}
+.wd-card strong,.wd-card small {display:block;overflow-wrap:anywhere}.wd-card strong {font-size:.95rem}.wd-card small {font-size:.79rem;color:var(--wd-soft)}
+.wd-status {white-space:nowrap;font-style:normal;color:#c0c7c7;font-size:.76rem}.wd-status.wd-ready {color:var(--wd-mint)}
+.wd-live:empty {display:none}.wd-live:not(:empty) {margin:0;padding:.1rem 1.2rem .8rem;color:var(--wd-mint);font-size:.88rem}
+@media (max-width:560px) {
+  .wd-head {padding:.65rem .9rem}.wd-body {grid-template-columns:minmax(0,1fr);padding:.8rem;gap:.8rem}
+  .wd-detail {display:grid;grid-template-columns:clamp(82px,25vw,118px) minmax(0,1fr);grid-template-rows:auto auto 1fr auto;column-gap:.8rem;align-items:start}
+  .wd-stage {grid-column:1;grid-row:1 / 5;height:100%;min-height:126px}.wd-stage img {width:76px;height:89px}.wd-plinth {width:68px;height:15px;bottom:15%}
+  .wd-detail h3 {margin:0}.wd-note {min-height:0;margin:.35rem 0 .45rem}.wd-props {font-size:.8rem}
+  .wd-card {min-height:53px;grid-template-columns:34px 1fr auto;padding:.24rem .65rem}.wd-card img {width:32px;height:39px}
+}

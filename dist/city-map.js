@@ -276,14 +276,14 @@
     ctx.restore();
   }
 
-  function drawPlayer(ctx,x,z,heading,walk){
+  function drawPlayer(ctx,x,z,heading,walk,coat,cap){
     ctx.save();ctx.translate(x,z);ctx.rotate(heading);ctx.scale(1.25,1.25);
     ctx.fillStyle='rgba(33,48,55,.35)';ctx.beginPath();ctx.ellipse(.12,.29,.89,1,0,0,Math.PI*2);ctx.fill();
     const k=Math.sin(walk)*.3;
     box(ctx,-.51,.08+k,.44,1,'#353f53');box(ctx,.07,.08-k,.44,1,'#353f53');
-    box(ctx,-.69,-.18,1.38,1,'#1d716e');box(ctx,-.8,-.18-k,.28,.58,'#e2ac81');box(ctx,.52,-.18+k,.28,.58,'#e2ac81');
+    box(ctx,-.69,-.18,1.38,1,coat);box(ctx,-.8,-.18-k,.28,.58,'#e2ac81');box(ctx,.52,-.18+k,.28,.58,'#e2ac81');
     disk(ctx,0,-.13,.58,'#eab986');disk(ctx,0,-.02,.49,'#634747');
-    path(ctx,[-.58,-.38,-.32,-.68,.49,-.62,.69,-.39,.57,-.22,-.65,-.22],'#ffc177');
+    path(ctx,[-.58,-.38,-.32,-.68,.49,-.62,.69,-.39,.57,-.22,-.65,-.22],cap);
     ctx.restore();
   }
 
@@ -310,6 +310,7 @@
     }
     const s={x:1.5,z:2,heading:0,driving:false,speed:0,carX:4,carZ:0};
     const keys=new Set(), keyboard=new Set();
+    let coatColor='#1e968e',capColor='#e8a83b';
     let carHeading=.14,carColor='#ee9968', paused=false,disposed=false;
     let footSpeedMultiplier=1;
     let targets=[],lastTime=0,frame=0,walk=0,velocity=0,stick=null,cameraX=s.x,cameraZ=s.z;
@@ -427,7 +428,7 @@
         // software chase camera fits the frame budget of an integrated GPU.
         if(time-lastDraw<39)return;
         lastDraw=time;
-        const frameState={...snapshot(),carHeading,carColor,walk,orbitYaw,orbitPitch,viewportWidth:w,viewportHeight:h,dpr};
+        const frameState={...snapshot(),carHeading,carColor,coatColor,capColor,walk,orbitYaw,orbitPitch,viewportWidth:w,viewportHeight:h,dpr};
         try {
           if(perspective.render(frameState,targets,time)!==false)return;
         } catch { /* Recover the current scene without resetting missions. */ }
@@ -454,7 +455,7 @@
         path(ctx,[m.x,m.z-.76,m.x+.58,m.z,m.x,m.z+.76,m.x-.58,m.z],m.color||'#ffcc69');
       });
       drawCar(ctx,s.carX,s.carZ,carHeading,carColor);
-      if(!s.driving)drawPlayer(ctx,s.x,s.z,s.heading,walk);
+      if(!s.driving)drawPlayer(ctx,s.x,s.z,s.heading,walk,coatColor,capColor);
       ctx.restore();
       // Labels stay upright and readable at any device density.
       ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 13px system-ui, sans-serif';
@@ -541,6 +542,7 @@
       setInput,interactVehicle,
       setTarget(point){targets=markerList(point);lastDraw=-Infinity;},
       setTargets(items){targets=markerList(items);lastDraw=-Infinity;},
+      setOutfit(coat,cap){coatColor=coat;capColor=cap;lastDraw=-Infinity;},
       setRunningShoes(enabled){footSpeedMultiplier=enabled?1.35:1;},
       setDrivingColor(color){
         if(Number.isInteger(color)&&color>=0&&color<=0xffffff)carColor='#'+color.toString(16).padStart(6,'0');

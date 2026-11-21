@@ -100,3 +100,5 @@
   .hs-item-icon{width:44px;height:44px}.hs-item-icon img{width:37px;height:37px}.hs-item-action .hs-button{padding:6px 8px;font-size:.81rem!important}
 }
 @media(max-width:340px){.hs-item{grid-template-columns:44px minmax(0,1fr)}.hs-item-action{grid-column:2}.hs-wallet{gap:8px}.hs-wallet-level{gap:5px}}
+
+#harbor-shop .hs-close.hs-back-lesson{width:auto;padding:0 10px;font-size:.9rem!important;color:#c6ecd1;border:1px solid var(--line);background:#243c3c}

@@ -162,9 +162,10 @@
       return {root,paint,wheels};
     }
 
-    const hero=human(scene,0x1e968e,0xe8a83b,0xcf966c,true);
+    const playerCoat=material(0x1e968e).clone(), playerCap=material(0xe8a83b).clone();
+    const hero=human(scene,playerCoat,playerCap,0xcf966c,true);
     const car=automobile(scene,0xe07850,true);
-    const driver=human(car.root,0x1e968e,0xe8a83b,0xcf966c,false);
+    const driver=human(car.root,playerCoat,playerCap,0xcf966c,false);
     driver.holder.scale.setScalar(.64);driver.holder.position.set(-.40,.29,.23);driver.holder.visible=false;
     let x=1.5,z=2,heading=0,carX=4,carZ=0,carHeading=.14,velocity=0,driving=false;
     car.root.position.set(carX,0,carZ);car.root.rotation.y=-carHeading;
@@ -210,7 +211,7 @@
       const objects=[];
       const select=obj=>{
         if(obj.isMesh && obj.material?.isMeshStandardMaterial && !obj.material.transparent &&
-           obj.material!==keepPaint && !obj.material.vertexColors)objects.push(obj);
+           obj.material!==keepPaint && obj.material!==playerCoat && obj.material!==playerCap && !obj.material.vertexColors)objects.push(obj);
       };
       if(recursive)anchor.traverse(select);else anchor.children.forEach(select);
       if(objects.length<2)return;
@@ -536,6 +537,7 @@
     window.addEventListener('keyup',keyUp);window.addEventListener('blur',resetInput);
     sync();aim(0,true);queueFrame();
     return {setInput,interactVehicle,setTarget,setTargets,pause,dispose,
+      setOutfit(coat,cap){playerCoat.color.set(coat);playerCap.color.set(cap);},
       setRunningShoes(enabled){footSpeedMultiplier=enabled?1.35:1;},
       setDrivingColor(hex){try{car.paint.color.set(hex);}catch{}}
     };

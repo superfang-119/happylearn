@@ -20,6 +20,7 @@
   const shown = new Map();
   let activeTab = 'quiz', scope = 'all', mission = null, result = null, showHint = false;
   let lastSubject = -1, localWrong = [], opener = null, mutating = false, pending = false;
+  let fromLesson = false, resumeLesson = '';
   let notice = '', noticeType = '', visible = false, walletMarkup='';
 
   dialog.innerHTML = '<div class="hs-head"><div class="hs-shopmark"><img src="art/treasure.png" alt=""></div>' +
@@ -199,6 +200,14 @@
     const wasOpen = dialog.open;
     if (!wasOpen) {
       opener = document.activeElement;
+      fromLesson = document.body.classList.contains('in-learn') && Boolean(window.LearnHome);
+      resumeLesson = '';
+      dialog.querySelector('[data-tab="quiz"]').hidden = fromLesson;
+      const close = dialog.querySelector('.hs-close');
+      close.textContent = fromLesson ? '回去学习' : '×';
+      close.classList.toggle('hs-back-lesson',fromLesson);
+      close.setAttribute('aria-label', fromLesson ? '回到当前学习题' : '关闭补给站');
+      if (fromLesson && tab === 'quiz') tab = 'shop';
       dialog.showModal();
       visibility(true);
     }
@@ -210,10 +219,21 @@
     if (dialog.open) return;
     visibility(false);
     const target=opener;opener=null;
+    if (resumeLesson && fromLesson) {
+      const focusCard = resumeLesson === 'use-in-quiz';
+      resumeLesson = '';
+      window.LearnHome.focusQuestion?.(focusCard);
+      return;
+    }
     if(target?.isConnected&&!target.closest?.('[hidden],dialog:not([open])')) target.focus({preventScroll:true});
   }
   function handle(actionName,value) {
     if(mutating)return;
+    if (fromLesson && ['close','to-quiz','use-in-quiz'].includes(actionName)) {
+      resumeLesson = actionName;
+      dialog.close();
+      return;
+    }
     if (actionName==='close') {dialog.close();return;}
     if (actionName==='to-quiz' || actionName==='use-in-quiz') {
       const s=game.getState(), forCard=actionName==='use-in-quiz';
@@ -286,7 +306,7 @@
   });
   dialog.addEventListener('keydown',event=>{
     if(!event.target.dataset.tab)return;
-    const all=[...dialog.querySelectorAll('[data-tab]')];
+    const all=[...dialog.querySelectorAll('[data-tab]:not([hidden])')];
     const pos=all.indexOf(event.target);
     let i=pos;
     if(event.key==='ArrowRight')i=(pos+1)%all.length;
