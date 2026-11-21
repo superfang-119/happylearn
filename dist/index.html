@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#10141e">
+  <meta name="description" content="在拾光群岛探索英语、地理、历史和语文。寻找线索、收集知识卡，开始你的七年级四科冒险。">
+  <title>拾光群岛 · 快乐学</title>
+  <link rel="icon" type="image/png" href="art/logo.png">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="game.css">
+  <script src="content.js" defer></script>
+  <script src="game.js" defer></script>
+  <script src="hub.js" defer></script>
+  <script src="voice.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#worlds">跳到探索区域</a>
+  <header class="topbar">
+    <div class="top-inner shell">
+      <a class="brand" href="#home" aria-label="快乐学，返回冒险大厅"><img src="art/logo.png" alt="" width="40" height="40"><span>快乐学<small>HAPPY LEARN</small></span></a>
+      <nav class="main-nav" aria-label="主要导航">
+        <button class="nav-item current" data-do="home" aria-current="page"><i data-icon="compass"></i>冒险大厅</button>
+        <button class="nav-item" data-do="journal"><i data-icon="book"></i>知识图鉴</button>
+        <button class="nav-item" data-do="awards"><i data-icon="award"></i>冒险勋章</button>
+      </nav>
+      <div class="top-tools">
+        <button class="sound-button" data-do="sound" aria-label="关闭游戏音效" title="关闭游戏音效"><i data-icon="sound"></i></button>
+        <span class="tools-sep"></span>
+        <div class="profile"><img src="art/avatar.png" width="36" height="36" alt=""><span><strong id="rank">见习探险家</strong><small id="level">LV. 01</small></span></div>
+      </div>
+    </div>
+  </header>
+  <main id="home" class="shell hub">
+    <section class="hero" aria-labelledby="island-title">
+      <div class="hero-art" aria-hidden="true"></div><div class="hero-shade" aria-hidden="true"></div>
+      <div class="hero-content">
+        <div class="chapter"><i data-icon="flag"></i><span>CHAPTER 01</span><b></b> 群岛启航</div>
+        <h1 id="island-title">拾光群岛</h1>
+        <p>穿过四座知识岛屿，收集散落的记忆碎片。</p>
+        <div class="hero-actions"><button data-do="start" class="gold-button"><i data-icon="play"></i><span id="start-label">开始冒险</span></button><button data-do="guide" class="glass-button"><i data-icon="guide"></i>玩法指南</button></div>
+      </div>
+      <div class="hero-coordinate"><span class="glint" aria-hidden="true">✦</span> 七年级上册 · 四科探险</div>
+    </section>
+    <section id="worlds" aria-labelledby="world-label">
+      <div class="section-line"><h2 id="world-label"><i data-icon="map"></i>探索区域</h2><button class="expedition" data-do="mixed"><i data-icon="flag"></i>跨岛远征<span class="chevron" aria-hidden="true">›</span></button></div>
+      <div class="regions" id="regions"></div>
+    </section>
+    <div class="dashboard-foot">
+      <section class="guide-strip" aria-labelledby="guide-title">
+        <div class="spirit-box"><span class="spirit-floor"></span><img src="art/sprite.png" width="59" height="56" alt=""></div>
+        <div class="guide-copy"><h2 id="guide-title">精灵向导<span>· 阿芽</span></h2><p id="guide-line">第一次出发？从晨曦森林开始，和我一起找线索吧！</p></div>
+      </section>
+      <section class="progress-strip" aria-labelledby="progress-title"><div class="progress-heading"><h2 id="progress-title"><i data-icon="crystal"></i>记忆碎片</h2><b id="fragment-count">0 / 27</b></div><div class="progress-track"><div id="overall-bar"></div></div><div class="memory-footer"><p id="progress-copy">每完成一个任务，点亮一枚碎片。</p><button type="button" id="due-link" data-do="review-due" hidden></button></div></section>
+    </div>
+    <noscript>请启用 JavaScript，以打开群岛、收集线索并保存冒险进度。</noscript>
+  </main>
+  <dialog id="game-dialog" aria-label="群岛探险"></dialog>
+  <dialog id="hub-dialog" aria-labelledby="help-title"><div class="guide-modal"><button class="close-help" data-do="close-guide" aria-label="关闭玩法指南">×</button><span class="manual-tag"><i data-icon="guide"></i> 探险手册</span><h2 id="help-title">第一次登岛</h2><ol><li><strong>选一座岛，去找线索</strong><p>点开喜欢的区域，再选一个短任务。跟着场景里的提示观察。</p></li><li><strong>试着行动，随时求助</strong><p>读完线索再做选择。遇到难题可以看提示，答错也能继续尝试。</p></li><li><strong>带走卡片，换个情境再想想</strong><p>完成任务即可收集知识卡。在「知识图鉴」里复习，每座岛各完成一个任务后还能开启跨岛远征。</p></li></ol><button class="gold-button" data-do="guide-start"><i data-icon="play"></i>出发探险</button></div></dialog>
+</body>
+</html>
