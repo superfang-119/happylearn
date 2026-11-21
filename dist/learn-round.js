@@ -11,7 +11,7 @@
   const integer=(v,max=1e9)=>Number.isSafeInteger(v)&&v>=0&&v<=max;
   const ids=v=>[...new Set(Array.isArray(v)?v.filter(id=>byId.has(id)):[])];
   const scopeName=s=>s==='all'?'四科轮练':subjects.get(s)?.name;
-  const freshProgress=()=>({scope:'english',rotation:0,sequence:0,rounds:{},memory:{},passed:[],activeTopic:null});
+  const freshProgress=()=>({scope:'english',rotation:0,sequence:0,rounds:{},memory:{},passed:[],activeTopic:null,topicBySubject:{}});
   let storageOK=true,lastRaw=null,data=freshProgress(),settling=false;
 
   function day(offset=0) {
@@ -62,7 +62,14 @@
         const key='topic:'+id,r=cleanRound(s.rounds?.[key],byId.get(id).subject,id);
         if(r)fresh.rounds[key]=r;
       }
-      if(byId.has(s.activeTopic)&&fresh.rounds['topic:'+s.activeTopic])fresh.activeTopic=s.activeTopic;
+      for(const subject of order){
+        const id=s.topicBySubject?.[subject];
+        if(byId.get(id)?.subject===subject&&fresh.rounds['topic:'+id])fresh.topicBySubject[subject]=id;
+      }
+      if(byId.has(s.activeTopic)&&fresh.rounds['topic:'+s.activeTopic]){
+        fresh.activeTopic=s.activeTopic;fresh.scope=byId.get(s.activeTopic).subject;
+        fresh.topicBySubject[fresh.scope]=s.activeTopic;
+      }
       if(integer(s.rotation,order.length-1))fresh.rotation=s.rotation;
       if(integer(s.sequence))fresh.sequence=s.sequence;
       for(const scope of scopes) {
@@ -158,7 +165,7 @@
   function openTopic(id) {
     const topics=getTopicProgress(),entry=topics.topics.find(t=>t.id===id);
     if(!entry||entry.status==='locked')return {ok:false,reason:'locked',message:'先学会本学科的上一关，就能开启这里。',state:getState()};
-    data.activeTopic=id;
+    data.scope=entry.subject;data.topicBySubject[entry.subject]=id;data.activeTopic=id;
     const existing=data.rounds['topic:'+id];
     if(!existing||existing.phase==='complete')startRound(entry.subject,id);
     else save();
@@ -217,7 +224,8 @@
   function selectSubject(scope) {
     current();
     if(!scopes.includes(scope))return getState();
-    data.scope=scope;data.activeTopic=null;save();
+    if(data.scope===scope)delete data.topicBySubject[scope];
+    data.scope=scope;data.activeTopic=data.topicBySubject[scope] || null;save();
     return getState();
   }
   function nextRound(scope) {
@@ -226,7 +234,7 @@
     if(r.phase==='complete'&&r.topicId) {
       const next=getTopicProgress().bySubject[r.scope].find(t=>t.status==='current');
       if(next)return openTopic(next.id).state;
-      data.activeTopic=null;data.scope=r.scope;save();
+      delete data.topicBySubject[r.scope];data.activeTopic=null;data.scope=r.scope;save();
     }
     if(r.phase==='complete')return snapshot(startRound(r.scope));
     return snapshot(r);

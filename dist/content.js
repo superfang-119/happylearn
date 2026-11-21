@@ -123,6 +123,210 @@
         recall: recall('你最喜欢地理。交换日记里应该写哪一句？',
           ['My favourite subject is English.', 'My favourite subject is geography.', 'My favourite subject is history.'],
           1, '指南针徽章的英文是 geography。', '把自己喜欢的学科 geography 填在 is 后面。')
+      },
+      {
+        id: "en-be",
+        title: "把队员送进合影",
+        sites: [
+          clue("合影相框", "相框亮起“I am Lin.”（我是林）和“You are Jo.”（你是乔）。"),
+          clue("姓名贴", "Sam 是一个人的名字，和 he 一样配 is；we 表示“我们”，配 are。")
+        ],
+        prompt: "Sam 站在你身边，你要写“Sam 是我的朋友”。填进“Sam ___ my friend.”的是？",
+        options: ["are", "is", "am"],
+        answer: 1,
+        hint: "Sam 是一个人的名字。",
+        explain: "要写 Sam is my friend. 单个人名配 is。",
+        memory: "I 配 am；he、she、it 和单个人名配 is；you、we、they 配 are。",
+        recall: recall("你和同桌一起举起队旗，要喊“我们准备好了”：We ___ ready!",
+          ["am", "is", "are"], 2,
+          "we 包括你和同桌两个人。", "We are ready! 是“我们准备好了”。we 配 are。")
+      },
+      {
+        id: "en-possessive",
+        title: "给失物挑主人",
+        sites: [
+          clue("失物台", "我指着自己的包说“my bag”；指着你的包说“your bag”。"),
+          clue("物主卡", "男孩 Ben 在足球上写了名字。his ball 是“他的球”，her ball 是“她的球”。")
+        ],
+        prompt: "你把 Ben 的足球交给老师，怎样说“这是他的球”？",
+        options: ["This is her ball.", "This is my ball.", "This is his ball."],
+        answer: 2,
+        hint: "说的是男孩 Ben 的球。",
+        explain: "his 表示“他的”，放在物品名 ball 前面。",
+        memory: "人作主语用 I、you、he、she；放在物品名前说归属，用 my、your、his、her。",
+        recall: recall("女孩 May 忘了带书。你指给老师看“这是她的书”，应选哪张标签？",
+          ["her book", "his book", "my book"], 0,
+          "先想书的主人是她，再看 book 前的词。", "her book 是“她的书”；she 是“她”，不能直接放在 book 前表示归属。")
+      },
+      {
+        id: "en-article",
+        title: "给野餐袋贴价签",
+        sites: [
+          clue("点单板", "a pen 是“一支笔”，an egg 是“一个鸡蛋”。跟读会听见 pen 开头是辅音，egg 开头是元音。"),
+          clue("水果筐", "orange（橙子）开头是元音。只装一个可数物品，要在词前补 a 或 an。")
+        ],
+        prompt: "野餐袋里装了一个橙子，标签该怎么写？",
+        options: ["an orange", "a orange", "an oranges"],
+        answer: 0,
+        hint: "orange 的开头是元音，而且这里只有一个。",
+        explain: "an orange 是“一个橙子”。orange 开头是元音，所以用 an。",
+        memory: "一个可数物品前，听到辅音开头用 a，听到元音开头用 an；判断靠发音。",
+        recall: recall("校服 uniform 虽以字母 u 开头，读音却以 you 开头的 /j/ 辅音起头。“一套校服”选哪张词条？",
+          ["an uniform", "a uniform", "a uniforms"], 1,
+          "听开头的音。uniform 的开头和 you 的开头一样。", "uniform 开头发辅音 /j/，所以用 a uniform。")
+      },
+      {
+        id: "en-demonstrative",
+        title: "帮摊主指对铅笔",
+        sites: [
+          clue("摊主左手", "手边一件说 this（这个），远处一件说 that（那个）。"),
+          clue("摊主右手", "手边多件说 these（这些），远处多件说 those（那些）。")
+        ],
+        prompt: "远处架子上摆着三支铅笔，摊主要说“那些铅笔”。用哪块指示牌？",
+        options: ["those pencils", "that pencil", "these pencils"],
+        answer: 0,
+        hint: "看两件事：离得远，数量又多。",
+        explain: "远处的多个物品用 those，铅笔也要用复数 pencils。",
+        memory: "this 近、单；that 远、单；these 近、多个；those 远、多个。",
+        recall: recall("你把两张车票摊在自己手心，想说“这些是我的票”。句首该选哪个词？",
+          ["Those", "That", "These"], 2,
+          "两张票就在手心。", "These are my tickets. 近处、多个，用 these。")
+      },
+      {
+        id: "en-plural",
+        title: "修好文具标签机",
+        sites: [
+          clue("书架", "一本书是 one book，两本书是 two books。许多单词直接加 -s。"),
+          clue("纸箱", "box 以 x 结尾，复数加 -es，读作 boxes；bus 的复数也是加 -es。")
+        ],
+        prompt: "仓库有三个盒子，哪张英文清单能贴上去？",
+        options: ["three box", "three boxs", "three boxes"],
+        answer: 2,
+        hint: "box 的结尾是 x。",
+        explain: "“三个盒子”是 three boxes。box 的复数加 -es。",
+        memory: "常见变化：book → books；box、bus 等加 -es；辅音字母加 y 结尾常把 y 改为 i 再加 -es。",
+        recall: recall("一个故事是 one story。现在展出两篇故事，标签上 story 要怎样写？",
+          ["storys", "stories", "storyes"], 1,
+          "story 的 y 前面是辅音字母 r。", "story 的复数是 stories：去掉 y，换成 -ies。")
+      },
+      {
+        id: "en-be-question",
+        title: "接通对讲机",
+        sites: [
+          clue("对讲机", "“She is on the team.”是“她在队里”。把 Is 放到主语前，就成了“Is she on the team?”。"),
+          clue("答话键", "问别人“Are you ready?”（你准备好了吗？），对方只代表自己时说“Yes, I am.”。")
+        ],
+        prompt: "你只代表自己，已经准备好。对方问“Are you ready?”，怎样回答？",
+        options: ["Yes, you are.", "Yes, I am.", "Yes, I do."],
+        answer: 1,
+        hint: "别人问“你”，你回答时要说“我”。",
+        explain: "Yes, I am. 表示“是的，我准备好了”。be 动词问句用相应的 be 动词简答。",
+        memory: "be 动词问句把 am、is、are 放到主语前。简答用 Yes 或 No，再接代词和相配的 be 动词。",
+        recall: recall("值日表显示那两个人今天不值日。有人问“Are they on duty?”，该怎样简答？",
+          ["No, they aren’t.", "No, they don’t.", "No, he isn’t."], 0,
+          "问的是 they，句首是 Are。", "No, they aren’t. 表示“不，他们今天不值日”。they 和 are 搭配。")
+      },
+      {
+        id: "en-greeting",
+        title: "为新同桌配音",
+        sites: [
+          clue("走廊时钟", "早上八点，见面可以说“Good morning!”（早上好！）。"),
+          clue("新同桌", "初次握手时，新同桌说“Nice to meet you.”，意思是“很高兴认识你”。")
+        ],
+        prompt: "这是你们第一次见面，你也想表达“很高兴认识你”，怎样接话？",
+        options: ["Good night.", "See you tomorrow.", "Nice to meet you, too."],
+        answer: 2,
+        hint: "要回应“认识你很高兴”，而且你也是。",
+        explain: "Nice to meet you, too. 中的 too 表示“也”。",
+        memory: "Good morning! 是早上好；Nice to meet you. 用于初次见面；How are you? 关心对方的近况。",
+        recall: recall("朋友问“How are you?”。你今天状态很好，想说“我很好，谢谢”。该怎么回？",
+          ["I’m fine, thanks.", "My name is Li.", "It’s a pen."], 0,
+          "对方关心你过得怎样。", "I’m fine, thanks. 回答了自己的状况，也谢谢了对方。")
+      },
+      {
+        id: "en-can",
+        title: "替伙伴选社团",
+        sites: [
+          clue("社团招牌", "swim 是游泳，sing 是唱歌。can 表示“会、能”，can’t 表示“不会、不能”。"),
+          clue("报名录音", "小远说“I can swim, but I can’t sing.”，他想报一个自己已经会的项目。")
+        ],
+        prompt: "按他的录音，应该把报名表送去哪个社团？",
+        options: ["游泳社", "唱歌社", "两个都不会"],
+        answer: 0,
+        hint: "but 前后是两种不同的本领。",
+        explain: "I can swim 表示“我会游泳”，I can’t sing 表示“我不会唱歌”。",
+        memory: "can / can’t 后用动词原形，如 can draw（会画画）、can’t dance（不会跳舞）。",
+        recall: recall("画画社请你帮忙。你会画画，怎样填“I can ___.”？",
+          ["draws", "drawing", "draw"], 2,
+          "can 后面的动词用原形。", "I can draw. 是“我会画画”。can 后用 draw，不加 -s 或 -ing。")
+      },
+      {
+        id: "en-third-person",
+        title: "给校园广播排词",
+        sites: [
+          clue("晨间报道", "“I walk to school.”是“我步行上学”。改说他，就成“He walks to school.”。"),
+          clue("校记者", "每天做的事属于习惯。一个人的名字和 he、she 一样，肯定句中的普通动词常加 -s 或 -es。")
+        ],
+        prompt: "Ben 每天步行去学校，给广播补词：“Ben ___ to school every day.”",
+        options: ["walk", "walks", "walking"],
+        answer: 1,
+        hint: "Ben 只代表一个人，而且说的是每天做的事。",
+        explain: "Ben walks to school every day. 第三人称单数作主语，walk 变为 walks。",
+        memory: "一般现在时肯定句中，he、she 或单个人名作主语，普通动词常加 -s；watch → watches，study → studies。",
+        recall: recall("放学后，May 常读书。为“May ___ after school.”补上正确的 read。",
+          ["read", "reading", "reads"], 2,
+          "May 相当于 she，句子表示习惯。", "May reads after school. 是“May 放学后读书”。单个人名配 reads。")
+      },
+      {
+        id: "en-do-question",
+        title: "为兴趣墙做采访",
+        sites: [
+          clue("采访卡", "“Do you like music?”是“你喜欢音乐吗？”；问一个男孩则是“Does he like music?”。"),
+          clue("编辑笔记", "用 does 开头的一般疑问句，后面的 like 保持原形。")
+        ],
+        prompt: "记者想问“她喜欢足球吗？”，该念哪句？",
+        options: ["Do she like football?", "Does she like football?", "Does she likes football?"],
+        answer: 1,
+        hint: "she 配 does；注意后面的 like。",
+        explain: "Does she like football? 中 does 表示第三人称单数，后面的 like 用原形。",
+        memory: "I、you、we、they 配 do；he、she 或单个人名配 does。问喜好时用 do/does + 主语 + like …？",
+        recall: recall("你采访两位同学，想问“他们喜欢美术吗？”：___ they like art?",
+          ["Does", "Do", "Is"], 1,
+          "they 指多个人。", "Do they like art? 用 Do 开头；问句里的 like 是原形。")
+      },
+      {
+        id: "en-weekday",
+        title: "修复丢字的课表",
+        sites: [
+          clue("课表页", "Monday 是星期一，Wednesday 是星期三，Friday 是星期五。"),
+          clue("播音纸", "“We have art on Monday.”是“我们星期一上美术课”。星期名前常用 on。")
+        ],
+        prompt: "这次美术课改到星期三，要把“在星期三”贴回课表。选哪张？",
+        options: ["on Wednesday", "in Wednesday", "at Wednesday"],
+        answer: 0,
+        hint: "照着 on Monday 的写法换成星期三。",
+        explain: "on Wednesday 是“在星期三”。星期名称的首字母要大写。",
+        memory: "说某一天的课，用 on 加星期，如 on Monday（星期一）、on Friday（星期五）。",
+        recall: recall("日程写着“星期五有历史课”。为广播补词：“We have history ___ Friday.”",
+          ["on", "in", "at"], 0,
+          "Friday 是具体的星期几。", "We have history on Friday. 表示“我们星期五上历史课”。")
+      },
+      {
+        id: "en-clock",
+        title: "把闹钟调到早餐时间",
+        sites: [
+          clue("电子钟", "07:00 读 seven o’clock；07:30 可以读 seven thirty。先读小时，再读分钟。"),
+          clue("晨间便笺", "“I get up at seven.”是“我七点起床”。说在几点做某事，时刻前用 at。")
+        ],
+        prompt: "伙伴要在七点半吃早餐，应该把电子钟调到哪里？",
+        options: ["07:13", "06:30", "07:30"],
+        answer: 2,
+        hint: "seven thirty 里的 thirty 是三十。",
+        explain: "7:30 是 seven thirty。I have breakfast at seven thirty. 是“我七点半吃早餐”。",
+        memory: "整点如 six o’clock，非整点可以按小时、分钟读。表示在这个时刻做事，用 at。",
+        recall: recall("校车在八点十分开走。时间牌“eight ten”对应哪一刻？",
+          ["08:01", "08:10", "10:08"], 1,
+          "先读小时 eight，再读分钟 ten。", "eight ten 是 8:10；10:08 的小时是 ten。")
       }
     ]),
     ...region('geography', [

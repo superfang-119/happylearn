@@ -4,6 +4,7 @@
 
   const { subjects, missions } = window.LEARNING_CONTENT;
   const byId = new Map(missions.map(mission => [mission.id, mission]));
+  const vocabulary = new Map((window.EnglishWords || []).map(entry => [entry.word,entry]));
   const worlds = new Map(subjects.map(subject => [subject.id, subject]));
   worlds.set('mixed', { id: 'mixed', name: '四科联动', region: '群岛联合远征', summary: '把在四个岛上学到的本领带进同一次冒险。' });
   const art = { english: 'forest', geography: 'harbor', history: 'ruins', chinese: 'academy', mixed: 'hero' };
@@ -15,7 +16,7 @@
     { id:'paint', name:'霓虹玫红车漆', price:48, kind:'permanent', description:'给你的敞篷车换上霓虹玫红色。' }
   ].map(Object.freeze));
   const products = new Map(catalog.map(item=>[item.id,item]));
-  const blankWallet = () => ({ quizzes:{}, reviews:{}, eligible:{}, errors:{}, used:{}, bought:0, owned:[], equipped:{shoes:false,paint:false} });
+  const blankWallet = () => ({ quizzes:{}, reviews:{}, vocabulary:{}, eligible:{}, errors:{}, used:{}, bought:0, owned:[], equipped:{shoes:false,paint:false} });
   const blank = () => ({ completed: [], reviewed: [], reviewSchedule: {}, mistakes: {}, checkpoints: {}, last: null, wallet:blankWallet() });
   const clone = value => JSON.parse(JSON.stringify(value));
   const uniqueIds = value => [...new Set(Array.isArray(value) ? value.filter(id => byId.has(id)) : [])];
@@ -73,12 +74,17 @@
   const countClaims = days => Object.values(days).reduce((total,ids)=>total+ids.length,0);
   const insightKey = (mode,id) => [mode,localDay(),id].join('/');
 
+  function earnedCoins(completed,w) {
+    return completed.reduce((n,id)=>n+coinsFor(byId.get(id)),0) +
+      10*countClaims(w.quizzes) + 5*countClaims(w.reviews) + 2*countClaims(w.vocabulary);
+  }
+
   // Progress and dated claims are the ledger. Balances are derived, so old
   // saves acquire their earned currency and duplicate claims never add funds.
   function totals() {
     const w=state.wallet, quizzes=countClaims(w.quizzes), reviews=countClaims(w.reviews);
-    const xp=state.completed.reduce((n,id)=>n+xpFor(byId.get(id)),0)+15*quizzes+8*reviews;
-    const earned=state.completed.reduce((n,id)=>n+coinsFor(byId.get(id)),0)+10*quizzes+5*reviews;
+    const xp=state.completed.reduce((n,id)=>n+xpFor(byId.get(id)),0)+15*quizzes+8*reviews+3*countClaims(w.vocabulary);
+    const earned=earnedCoins(state.completed,w);
     const spent=w.bought*products.get('insight').price+w.owned.reduce((n,id)=>n+products.get(id).price,0);
     return {xp,coins:Math.max(0,earned-spent),level:1+Math.floor(xp/80),levelXP:xp%80,nextLevelXP:80};
   }
@@ -86,10 +92,10 @@
   function decodeWallet(raw,completed) {
     const w=blankWallet();
     if(!raw || typeof raw!=='object')return w;
-    for(const [field,allowed] of [['quizzes',isCityQuiz],['reviews',id=>completed.includes(id)]]) {
+    for(const [field,allowed] of [['quizzes',isCityQuiz],['reviews',id=>completed.includes(id)],['vocabulary',word=>vocabulary.has(word)]]) {
       for(const [day,ids] of Object.entries(raw[field]||{})) {
         if(!validDay(day))continue;
-        const cleaned=uniqueIds(ids).filter(allowed);
+        const cleaned=Array.isArray(ids) ? [...new Set(ids.filter(allowed))] : [];
         if(cleaned.length)w[field][day]=cleaned;
       }
     }
@@ -109,7 +115,7 @@
     w.owned=['shoes','paint'].filter(id=>owned.includes(id));
     for(const id of w.owned)w.equipped[id]=raw.equipped?.[id]!==false;
     w.bought=Number.isSafeInteger(raw.bought)&&raw.bought>0?raw.bought:0;
-    const earned=completed.reduce((n,id)=>n+coinsFor(byId.get(id)),0)+10*countClaims(w.quizzes)+5*countClaims(w.reviews);
+    const earned=earnedCoins(completed,w);
     // Ignore unaffordable inventory from an interrupted or malformed save.
     let remaining=earned;
     w.owned=w.owned.filter(id=>{
@@ -186,7 +192,7 @@
       if(has(w.used,key))quizEliminatedToday[m.id]=w.used[key];
     }
     return clone({ ...totals(),inventory:{insight:insightCount()},owned:w.owned,equipped:w.equipped,
-      quizClaimedToday:w.quizzes[today]||[],quizEliminatedToday,quizWrongToday:w.errors[today]||{},shards: state.completed.length, completed: state.completed, memories: state.completed, reviewed: state.reviewed, dueReviews: dueReviews(), reviewSchedule: state.reviewSchedule, active, mistakes: state.mistakes });
+      vocabularyClaimedToday:w.vocabulary[today]||[],quizClaimedToday:w.quizzes[today]||[],quizEliminatedToday,quizWrongToday:w.errors[today]||{},shards: state.completed.length, completed: state.completed, memories: state.completed, reviewed: state.reviewed, dueReviews: dueReviews(), reviewSchedule: state.reviewSchedule, active, mistakes: state.mistakes });
   }
 
   function notify() {
@@ -227,6 +233,20 @@
     const days=state.wallet[field],ids=days[day]||(days[day]=[]);
     if(ids.includes(id))return false;
     ids.push(id);return true;
+  }
+  function rewardVocabulary(word,answer) {
+    refresh();
+    const entry=vocabulary.get(word);
+    const normalize=s=>s.trim().toLowerCase().replace(/’/g,"'").replace(/\s+/g,' ');
+    const before=totals().level;
+    const empty={correct:false,rewarded:false,xpGain:0,coinGain:0,levelUp:false,level:before};
+    if(!entry || typeof answer!=='string')return failure('invalid_word','请再试试看。',empty);
+    const accepted=[entry.word,...(entry.aliases||[])];
+    if(!accepted.some(value=>normalize(value)===normalize(answer)))return failure('try_again','再想想这个词的拼写。',empty);
+    const rewarded=claim('vocabulary',word);
+    if(rewarded)save();
+    const level=totals().level;
+    return {ok:true,correct:true,rewarded,xpGain:rewarded?3:0,coinGain:rewarded?2:0,levelUp:level>before,level};
   }
   function answerCityQuiz(id,index) {
     refresh();
@@ -725,7 +745,7 @@
     }
   });
   window.Game = Object.freeze({
-    getState,catalog,buyItem,equipItem,answerCityQuiz,useQuizInsight,start,openRegion:region,openJournal:journal,openAchievements:achievements,
+    getState,catalog,buyItem,equipItem,answerCityQuiz,rewardVocabulary,useQuizInsight,start,openRegion:region,openJournal:journal,openAchievements:achievements,
     startMixed: () => mixedOpen() ? start('mixed') : locked(),
     subscribe(fn) { if(typeof fn !== 'function') return () => {}; listeners.add(fn); return () => listeners.delete(fn); }
   });

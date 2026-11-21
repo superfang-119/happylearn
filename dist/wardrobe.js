@@ -30,23 +30,25 @@
       if (trail) {
         const item = trail.bySubject?.[id];
         const total = positiveInt(item?.total);
-        return {name, total, passed:Math.min(positiveInt(item?.passed), total)};
+        const passed=Math.min(positiveInt(item?.passed),total);
+        return {name,total,passed,foundationPassed:Math.min(6,item?.foundationPassed??passed)};
       }
       const rows = round?.bySubject?.[id];
       return {name, total:Array.isArray(rows) ? rows.length : 0,
-        passed:Array.isArray(rows) ? rows.filter(row => row.status === 'passed').length : 0};
+        passed:Array.isArray(rows) ? rows.filter(row => row.status === 'passed').length : 0,
+        foundationPassed:Array.isArray(rows) ? rows.slice(0,6).filter(row=>row.status==='passed').length : 0};
     });
     const ids = trail?.passedIds || round?.passed || [];
     const count = Math.max(Array.isArray(ids) ? new Set(ids).size : 0, ...groups.map(s => s.passed));
     const untouched = groups.filter(s => s.passed === 0);
     const nearest = groups.filter(s => s.total > 0)
-      .sort((a,b) => (a.total - a.passed) - (b.total - b.passed))[0];
-    const full = Boolean(nearest && nearest.passed === nearest.total);
+      .sort((a,b) => b.foundationPassed-a.foundationPassed)[0];
+    const full = Boolean(nearest && nearest.foundationPassed===6);
     return {
       pathfinder:{ready:true, goal:'启程赠礼', note:'随时可以穿上这套出发。'},
       courier:{ready:count >= 1, goal:'通过任意 1 关', note:count ? '你已完成第一次闯关。' : '再通过 1 个学习关卡即可解锁。'},
-      starpilot:{ready:full, goal:'通关任意一科', note:full ? '你已通关'+nearest.name+'。'
-        : nearest ? nearest.name+'还差 '+(nearest.total-nearest.passed)+' 关，也可以选其他科目。' : '完成任意一个科目的全部关卡即可解锁。'},
+      starpilot:{ready:full, goal:'通过任意一科的前 6 个基础关', note:full ? '你已通过'+nearest.name+'的前 6 个基础关。'
+        : nearest ? nearest.name+'基础关还差 '+(6-nearest.foundationPassed)+' 关，也可以选其他科目。' : '通过任意一科的前 6 个基础关即可解锁。'},
       leafcloak:{ready:untouched.length === 0, goal:'四科各通过 1 关', note:untouched.length ?
         '还差 '+untouched.length+' 科：'+untouched.map(s => s.name).join('、')+'。' : '你已经在四个科目中各迈出了第一步。'}
     };

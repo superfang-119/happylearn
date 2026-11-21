@@ -2,8 +2,10 @@
 (() => {
   'use strict';
 
-  function fact(topic, lesson, prompt, options, answer, hint, explain) {
-    return { topic, lesson, practice: { prompt, options, answer, hint, explain } };
+  function fact(topic, lesson, prompt, options, answer, hint, explain, model) {
+    const point = { topic, lesson, practice: { prompt, options, answer, hint, explain } };
+    if (model) point.model = model;
+    return point;
   }
 
   window.LearnFacts = {
@@ -11,37 +13,128 @@
       '碰面时，别人问“What’s your name?”，你可以说“My name is Bo.”，也就是“我叫博”。',
       '广播里传来“My name is Ben.”，给这位新队员印名牌时应印什么？',
       ['My', 'Ben', 'Name'], 1,
-      '名字跟在 My name is 后面。', '他说的是“我叫 Ben”，所以名牌上写 Ben。'
+      '名字跟在 My name is 后面。', '他说的是“我叫 Ben”，所以名牌上写 Ben。',
+      { en: "My name is Leo.", zh: "我叫利奥。" }
     ),
     'en-colour': fact('读懂颜色词',
       '想象三支彩笔：green 涂绿叶，blue 涂蓝天，red 涂红旗。',
       '要给红色急件系丝带，盒子上分别写着英文，拿哪一盒？',
       ['blue', 'green', 'red'], 2,
-      '回忆给红旗涂色的那支笔。', 'red 对应红色，blue 对应蓝色，green 对应绿色。'
+      '回忆给红旗涂色的那支笔。', 'red 对应红色，blue 对应蓝色，green 对应绿色。',
+      { en: "My bag is green.", zh: "我的包是绿色的。" }
     ),
     'en-under': fact('用 in、on、under 说位置',
       '把硬币放进盒子用 in，搁在盒盖上用 on，藏到盒子底下用 under。',
       '钥匙在书包里面，给同伴发短信：“The key is ___ my bag.”',
       ['in', 'on', 'under'], 0,
-      '钥匙被书包包在里面。', '在书包里面用 in my bag。'
+      '钥匙被书包包在里面。', '在书包里面用 in my bag。',
+      { en: "The pen is in the box.", zh: "笔在盒子里。" }
     ),
     'en-family': fact('称呼家庭成员',
       '英语里，哥哥和弟弟都可以叫 brother，姐姐和妹妹都可以叫 sister。',
       '队友指着姐姐说“This is my ___.”，相册配哪个词？',
       ['father', 'sister', 'brother'], 1,
-      '你要找的是“姐妹”这个词。', '姐姐和妹妹都是 sister，这个词本身不区分年龄大小。'
+      '你要找的是“姐妹”这个词。', '姐姐和妹妹都是 sister，这个词本身不区分年龄大小。',
+      { en: "This is my father.", zh: "这是我的爸爸。" }
     ),
     'en-supplies': fact('用 There is / are 说数量',
       '说架子上有一本书用 There is one book，有两本书用 There are two books。',
       '要在清单上写“箱里有三支笔”，哪一句的开头和数量搭配正确？',
       ['There are three pens.', 'There are two pens.', 'There is one pen.'], 0,
-      'three pens 是多个，找介绍多个东西的开头。', '三支笔是 three pens，前面用 There are。'
+      'three pens 是多个，找介绍多个东西的开头。', '三支笔是 three pens，前面用 There are。',
+      { en: "There are two cups.", zh: "有两个杯子。" }
     ),
     'en-subject': fact('介绍最喜欢的学科',
       '“My favourite subject is English.”是在说“我最喜欢的学科是英语”，把 English 换成 history 就变成了历史。',
       '你最喜欢历史，想给新同桌写一张英文小纸条。选哪句？',
       ['My favourite subject is history.', 'My favourite subject is English.', 'My favourite subject is geography.'], 0,
-      '看 is 后面的学科；history 表示历史。', '把喜欢的学科 history 接在 My favourite subject is 后面。'
+      '看 is 后面的学科；history 表示历史。', '把喜欢的学科 history 接在 My favourite subject is 后面。',
+      { en: "My favourite subject is music.", zh: "我最喜欢的学科是音乐。" }
+    ),
+
+    "en-be": fact("I、you 和名字怎样搭配 be 动词",
+      "介绍自己可以说 I am Lin.（我是林）；介绍同伴说 He is Ben.（他是本）。对你说 you are，说到我们用 we are。",
+      "录音室里只有你一个人。想用“I ___ new here.”说“我是新来的”，按哪个键？",
+      ["am", "is", "are"], 0,
+      "主语只有一个字母 I。", "I am new here. 表示“我是新来的”。I 配 am。",
+      { en: "You are on my team.", zh: "你在我的队里。" }
+    ),
+    "en-possessive": fact("用 my、your、his、her 说物品是谁的",
+      "I（我）、you（你）、he（他）、she（她）能作主语。说东西是谁的，在名词前换成 my（我的）、your（你的）、his（他的）、her（她的）。",
+      "你当面把铅笔还给同桌，说“这是你的铅笔”：This is ___ pencil.",
+      ["she", "you", "your"], 2,
+      "你正对物主说话，要表达“你的”。", "在 pencil 前用 your 表示“你的”。you 单独表示“你”。",
+      { en: "My hat is blue.", zh: "我的帽子是蓝色的。" }
+    ),
+    "en-article": fact("按开头发音选 a 或 an",
+      "数一个可数物品，要听后面那个词开头的音。a book（一本书）开头是辅音；an apple（一个苹果）开头是元音。字母和发音有时不同。",
+      "计时牌写“一个小时”。hour（小时）的 h 不发音，开头读元音 /aʊ/。哪块牌正确？",
+      ["a hour", "an hour", "an hours"], 1,
+      "先听 hour 的第一个音，再看“一个”后面用单数还是复数。", "hour 开头是元音，所以说 an hour。这里只说一个小时，hour 用单数。",
+      { en: "I have an egg.", zh: "我有一个鸡蛋。" }
+    ),
+    "en-demonstrative": fact("用 this、that、these、those 指物",
+      "先看远近，再数一数。手边一件用 this，多件用 these；远处一件用 that，多件用 those。",
+      "你隔着操场指向远处唯一的一棵树，说“___ tree is tall.”，用哪个词？",
+      ["This", "That", "Those"], 1,
+      "远处是一棵树，tree 是单数。", "That tree is tall. 是“那棵树很高”。远处的一个用 that。",
+      { en: "These are my books.", zh: "这些是我的书。" }
+    ),
+    "en-plural": fact("把常见可数名词变成复数",
+      "先找词尾。许多名词加 -s，如 pens；box 这样的词加 -es；story 以辅音字母加 y 结尾，改成 stories。元音字母加 y 的 toy 则是 toys。",
+      "你给两辆校车拍了照。bus 以 s 结尾，写“two ___”时应选哪一张词卡？",
+      ["buss", "bus", "buses"], 2,
+      "回想 box 的复数怎样多出一个音节。", "two buses 是“两辆公共汽车”。bus 加 -es 变为 buses。",
+      { en: "I have two pens.", zh: "我有两支笔。" }
+    ),
+    "en-be-question": fact("用 be 动词提问和简短回答",
+      "陈述句 He is here.（他在这里）变问句 Is he here?（他在这里吗？）。简答可以说 Yes, he is. 或 No, he isn’t.，留意问谁和答案是肯定还是否定。",
+      "桌上只有一本蓝色的书。有人问“Is it blue?”。你该怎样作肯定简答？",
+      ["Yes, it is.", "Yes, it does.", "Yes, they are."], 0,
+      "一本书用 it，问题以 Is 开头。", "Yes, it is. 是“是的，它是蓝色的”。",
+      { en: "Are we early?", zh: "我们来早了吗？" }
+    ),
+    "en-greeting": fact("初次见面和问候时礼貌回应",
+      "问候要接住对方的话。Good morning!（早上好）可以原样回；How are you?（你好吗）可以讲近况；初次见面说 Nice to meet you.。",
+      "录音写明清晨七点，老师用“Good morning, Mia!”向你问早。你要原样问候老师，哪句合适？",
+      ["Good evening!", "Good morning!", "Good night!"], 1,
+      "留心录音发生在早晨。", "在早晨回 Good morning! 就是自然的问候。",
+      { en: "Hello, I am Mia.", zh: "你好，我叫米娅。" }
+    ),
+    "en-can": fact("用 can 和 can’t 说会做什么",
+      "表达本领时，用 can 加动词原形。I can cook.（我会做饭）；加上 not，或合写成 can’t，就变成“不会”。",
+      "小青会跳舞，却不会唱歌。请给她选一句准确的自我介绍。",
+      ["I can dance, but I can’t sing.", "I can sing, but I can’t dance.", "I can sing and dance."], 0,
+      "but 是“但是”，看清哪件事会、哪件事不会。", "can dance 说的是会跳舞，can’t sing 说的是不会唱歌。",
+      { en: "I can ride a bike.", zh: "我会骑自行车。" }
+    ),
+    "en-third-person": fact("用一般现在时说一个人的习惯",
+      "说经常做的事：I play（我玩），he plays（他玩）。像 watch 这样的词变成 watches；study 则变成 studies。",
+      "每晚七点，Tom 都看电视。“Tom ___ TV every evening.”该用哪个词？",
+      ["watch", "watchs", "watches"], 2,
+      "Tom 是一个人；watch 以 ch 结尾。", "watch 的第三人称单数是 watches。句子意思是“Tom 每天晚上看电视”。",
+      { en: "She plays the piano.", zh: "她弹钢琴。" }
+    ),
+    "en-do-question": fact("用 do 或 does 询问喜好",
+      "普通动词 like（喜欢）可以用 do 或 does 来问。Do you like tea?（你喜欢茶吗？）；Does Ben like tea?（Ben 喜欢茶吗？）。肯定简答结尾跟 do 或 does。",
+      "Mia 的兴趣卡明确写着“喜欢音乐”。有人问“Does Mia like music?”。你怎样肯定地简答？",
+      ["Yes, she do.", "Yes, she is.", "Yes, she does."], 2,
+      "Mia 用 she 指代，听问题开头的助动词。", "Yes, she does. 与 Does Mia …? 对应，意思是“对，她喜欢音乐”。",
+      { en: "Do you like art?", zh: "你喜欢美术吗？" }
+    ),
+    "en-weekday": fact("用 on 和星期说课表",
+      "课表里 Monday 是星期一，Tuesday 星期二，Wednesday 星期三，Thursday 星期四，Friday 星期五。说在星期几，用 on 加星期名。",
+      "新同学只想知道周二哪门课。提示 Tuesday 是星期二，音乐课排在这天。哪句准确？",
+      ["We have music on Thursday.", "We have music on Tuesday.", "We have music in Tuesday."], 1,
+      "既要对上星期，又要选对星期前的介词。", "on Tuesday 表示“在星期二”。Thursday 是星期四。",
+      { en: "We have art on Monday.", zh: "我们星期一上美术课。" }
+    ),
+    "en-clock": fact("读钟点并用 at 说日常作息",
+      "看数字钟先读小时，再读分钟，六点二十是 six twenty。说作息时，把 at 放在时刻前。整点还可以说 o’clock。",
+      "起床记录是 6:30。既要时间正确，又要说“我在这个时刻起床”，哪句合适？",
+      ["I get up at six thirty.", "I get up at six thirteen.", "I get up on six thirty."], 0,
+      "thirty 是三十；时刻前用 at。", "I get up at six thirty. 表示“我六点半起床”。",
+      { en: "School starts at eight.", zh: "学校八点开始上课。" }
     ),
 
     'geo-direction': fact('看指北箭头辨方向',

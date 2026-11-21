@@ -1,0 +1,147 @@
+// Broad, rhotic US English. DRESS = ɛ, stressed NURSE = ɝ, unstressed -er = ɚ.
+// Vowel length and optional phonetic details (e.g. tapped t) are not marked.
+// References: CMUdict (https://github.com/cmusphinx/cmudict), Cambridge Dictionary
+// (e.g. https://dictionary.cambridge.org/us/pronunciation/english/maths) and
+// Oxford Advanced American Dictionary (minute, noun). Tips are original.
+(() => {
+  'use strict';
+
+  // The focus is one local spelling-to-sound link, not a rule for every word.
+  // Full grapheme alignments are supplied only for the short, unambiguous models.
+  const rows = [
+    ['book', 'bʊk', 'oo', 'ʊ', '双唇稍微收圆，短促地发出中间的元音。', [['b','b'], ['oo','ʊ'], ['k','k']]],
+    ['bag', 'bæɡ', 'a', 'æ', '嘴张开，舌尖靠近下齿，听中间的元音。', [['b','b'], ['a','æ'], ['g','ɡ']]],
+    ['pen', 'pɛn', 'e', 'ɛ', '嘴唇自然放松，开口比 bag 的元音小一些。', [['p','p'], ['e','ɛ'], ['n','n']]],
+    ['pencil', 'ˈpɛnsəl', 'e', 'ɛ', '第一拍读重，开头像 pen。'],
+    ['ruler', 'ˈrulɚ', 'u', 'u', '第一拍读重，双唇收圆。'],
+    ['desk', 'dɛsk', 'e', 'ɛ', '中间的元音和 pen 相同，结尾直接接 s、k。', [['d','d'], ['e','ɛ'], ['s','s'], ['k','k']]],
+    ['chair', 'tʃɛr', 'ch', 'tʃ', '这两个字母合起来发一个辅音，先堵住气流再放开。'],
+    ['door', 'dɔr', 'd', 'd', '开头舌尖碰上齿龈，再松开。'],
+    ['window', 'ˈwɪndoʊ', 'ow', 'oʊ', '末尾从较开的唇形滑向收圆，连成一拍。'],
+    ['clock', 'klɑk', 'ck', 'k', '末尾 ck 合起来只收一个 k 音。'],
+
+    ['read', 'rid', 'ea', 'i', '这里是动词原形，ea 发 i；重听词中间。'],
+    ['write', 'raɪt', 'wr', 'r', '开头 wr 一起读 r，w 不单独出声。'],
+    ['draw', 'drɔ', 'aw', 'ɔ', 'aw 连在一起发一个元音。'],
+    ['count', 'kaʊnt', 'ou', 'aʊ', '从张口滑向圆唇，平滑地连成一拍。'],
+    ['open', 'ˈoʊpən', 'o', 'oʊ', '开头这一拍读重，嘴唇渐渐收圆。'],
+    ['close', 'kloʊz', 's', 'z', '这里表示“关上”，结尾轻轻振动声带。'],
+    ['ask', 'æsk', 'a', 'æ', '开头元音和 bag 中间相同，随后接 sk。'],
+    ['answer', 'ˈænsɚ', 'a', 'æ', '第一拍读重，拼写中的 w 不单独发音。'],
+    ['listen', 'ˈlɪsən', 'i', 'ɪ', '第一拍的 i 短而放松；这个词的 t 不出声。'],
+    ['speak', 'spik', 'ea', 'i', 'ea 读一个元音，舌身向前抬高。'],
+
+    ['mother', 'ˈmʌðɚ', 'th', 'ð', '舌尖轻触上下牙之间，送气时让声带振动。'],
+    ['father', 'ˈfɑðɚ', 'th', 'ð', '中间的 th 和 mother 相同，轻轻振动声带。'],
+    ['sister', 'ˈsɪstɚ', 'i', 'ɪ', '第一拍有和 fish 相同的短元音。'],
+    ['brother', 'ˈbrʌðɚ', 'o', 'ʌ', '第一拍读重，o 在这里不按字母名称读。'],
+    ['family', 'ˈfæməli', 'a', 'æ', '开头这一拍最响亮，中间一拍要轻。'],
+    ['friend', 'frɛnd', 'ie', 'ɛ', '这里 ie 合起来读一个元音，和 pen 的 e 相同。'],
+    ['home', 'hoʊm', 'o', 'oʊ', '嘴唇逐渐收圆，词尾的 e 不另外出声。'],
+    ['room', 'rum', 'oo', 'u', '这次 oo 发 u，听它和 book 中 oo 的差别。'],
+    ['bed', 'bɛd', 'e', 'ɛ', '中间的元音和 pen 一样。', [['b','b'], ['e','ɛ'], ['d','d']]],
+    ['table', 'ˈteɪbəl', 'a', 'eɪ', '第一拍读重，元音从 e 滑向 ɪ。'],
+
+    ['rice', 'raɪs', 'c', 's', '末尾的 c 发清辅音 s，不振动声带。'],
+    ['bread', 'brɛd', 'ea', 'ɛ', '这里 ea 读 ɛ，和 bed 中的元音相同。'],
+    ['egg', 'ɛɡ', 'gg', 'ɡ', '两个 g 合起来发一个辅音。'],
+    ['milk', 'mɪlk', 'i', 'ɪ', '中间元音短而放松，结尾 l、k 直接连上。', [['m','m'], ['i','ɪ'], ['l','l'], ['k','k']]],
+    ['water', 'ˈwɔtɚ', 'er', 'ɚ', '末尾一拍很轻，带美音的 r 音色。'],
+    ['apple', 'ˈæpəl', 'a', 'æ', '第一拍张口读重，和 bag 的元音相同。'],
+    ['banana', 'bəˈnænə', 'a', 'æ', '听中间那个 a：它读重，两边的 a 都弱读。'],
+    ['orange', 'ˈɔrəndʒ', 'ge', 'dʒ', '结尾 ge 合起来发一个带声的辅音。'],
+    ['fish', 'fɪʃ', 'i', 'ɪ', '舌身略抬、嘴唇放松；末尾 sh 合成一个音。', [['f','f'], ['i','ɪ'], ['sh','ʃ']]],
+    ['chicken', 'ˈtʃɪkən', 'ch', 'tʃ', '开头 ch 合起来读，接着轻快地发 ɪ。'],
+
+    ['map', 'mæp', 'a', 'æ', 'a 的声音与 bag 相同，最后双唇闭合。', [['m','m'], ['a','æ'], ['p','p']]],
+    ['street', 'strit', 'ee', 'i', '两个 e 合起来发一个元音。'],
+    ['park', 'pɑrk', 'r', 'r', '美音在 a 后带出 r，再接 k。'],
+    ['school', 'skul', 'oo', 'u', '中间的 oo 和 room 里的 oo 同音。'],
+    ['bus', 'bʌs', 'u', 'ʌ', '嘴唇放松，不要收成圆形。'],
+    ['bike', 'baɪk', 'i', 'aɪ', '从张口渐渐过渡到 ɪ，末尾 e 不出声。'],
+    ['stop', 'stɑp', 'o', 'ɑ', 's 和 t 连着发，别在中间加一拍。', [['s','s'], ['t','t'], ['o','ɑ'], ['p','p']]],
+    ['left', 'lɛft', 'e', 'ɛ', '中间元音和 pen 相同，f、t 收在同一拍。', [['l','l'], ['e','ɛ'], ['f','f'], ['t','t']]],
+    ['right', 'raɪt', 'igh', 'aɪ', 'igh 合起来从 a 滑向 ɪ，不另外读 g 和 h。'],
+    ['near', 'nɪr', 'r', 'r', '元音后带一个 r 音色，舌尖不用弹动。'],
+
+    ['play', 'pleɪ', 'ay', 'eɪ', '结尾 ay 合起来从 e 滑向 ɪ。'],
+    ['run', 'rʌn', 'u', 'ʌ', '舌身放松，听它与 bus 中元音的相似处。'],
+    ['walk', 'wɔk', 'w', 'w', '双唇先收圆再放开，拼写中的 l 不单独读。'],
+    ['jump', 'dʒʌmp', 'j', 'dʒ', 'j 表示一个带声的辅音，随后直接接元音。', [['j','dʒ'], ['u','ʌ'], ['m','m'], ['p','p']]],
+    ['sing', 'sɪŋ', 'ng', 'ŋ', '末尾 ng 合起来是一个鼻音，不再补一个 g。'],
+    ['swim', 'swɪm', 'i', 'ɪ', '开头 s、w 连起来，中间的 i 和 fish 同音。', [['s','s'], ['w','w'], ['i','ɪ'], ['m','m']]],
+    ['wash', 'wɑʃ', 'sh', 'ʃ', '末尾 sh 合起来，双唇略收，让气流摩擦而出。'],
+    ['eat', 'it', 'ea', 'i', '开头 ea 合在一起发音，然后用 t 收尾。'],
+    ['drink', 'drɪŋk', 'n', 'ŋ', '在这里 n 位于 k 前，舌后部抬起发鼻音。'],
+    ['sleep', 'slip', 'ee', 'i', 'ee 发一个元音，起头的 s、l 直接相连。'],
+
+    ['subject', 'ˈsʌbdʒɪkt', 'u', 'ʌ', '表示“学科”时第一拍读重。'],
+    ['lesson', 'ˈlɛsən', 'e', 'ɛ', '第一拍与 pen 的元音相同，后一拍读轻。'],
+    ['science', 'ˈsaɪəns', 'i', 'aɪ', '第一拍读重，从张口滑向 ɪ，再轻读后一拍。'],
+    ['history', 'ˈhɪstɚi', 'i', 'ɪ', '重音在第一拍，开头的 i 和 fish 同音。'],
+    ['geography', 'dʒiˈɑɡrəfi', 'ph', 'f', 'ph 合起来读 f；整词重音落在第二拍。'],
+    ['maths', 'mæθs', 'th', 'θ', '舌尖轻触牙齿间送气，再接末尾 s，不多加元音。'],
+    ['exam', 'ɪɡˈzæm', 'a', 'æ', '第二拍读重，a 和 bag 中的 a 同音。'],
+    ['question', 'ˈkwɛstʃən', 'e', 'ɛ', '第一拍读重，中间 e 的元音与 pen 相同。'],
+    ['mistake', 'mɪˈsteɪk', 'a', 'eɪ', '第二拍读重，a 从 e 滑向 ɪ。'],
+    ['practice', 'ˈpræktəs', 'a', 'æ', '第一拍读重，a 与 map 中的元音相同。'],
+
+    ['early', 'ˈɝli', 'ear', 'ɝ', '开头 ear 合成一个带 r 音色的重读元音。'],
+    ['late', 'leɪt', 'a', 'eɪ', 'a 从 e 滑向 ɪ，词尾的 e 不单独读。'],
+    ['often', 'ˈɔfən', 'f', 'f', '上齿轻触下唇送气，这个读法里的 t 不出声。'],
+    ['sometimes', 'səmˈtaɪmz', 's', 'z', '注意最后那个 s：接在 m 后读成带声的 z。'],
+    ['before', 'bɪˈfɔr', 'f', 'f', '第二拍读重，f 开头时上齿轻触下唇。'],
+    ['after', 'ˈæftɚ', 'a', 'æ', '第一拍读重，最后一拍很轻。'],
+    ['during', 'ˈdʊrɪŋ', 'ng', 'ŋ', '末尾 ng 收成一个鼻音，不另加 g。'],
+    ['minute', 'ˈmɪnət', 'i', 'ɪ', '表示“分钟”时第一拍读重，中间的 i 短而放松。'],
+    ['hour', 'aʊɚ', 'ou', 'aʊ', 'h 不出声，从 ou 的滑动元音起音。'],
+    ['finish', 'ˈfɪnɪʃ', 'sh', 'ʃ', '末尾的 sh 和 fish 的收尾相同。'],
+
+    ['library', 'ˈlaɪbrɛri', 'i', 'aɪ', '第一拍读重，开头的 i 从 a 滑向 ɪ。'],
+    ['museum', 'mjuˈziəm', 's', 'z', '重音在第二拍，s 在这里读成带声的 z。'],
+    ['station', 'ˈsteɪʃən', 'ti', 'ʃ', '在词尾 tion 中，ti 合起来发 ʃ。'],
+    ['market', 'ˈmɑrkət', 'r', 'r', '第一拍读重，美音在元音之后带出 r。'],
+    ['bridge', 'brɪdʒ', 'dge', 'dʒ', '末尾 dge 三个字母合成一个辅音。'],
+    ['across', 'əˈkrɔs', 'a', 'ə', '开头的 a 短而轻，重音在后一拍。'],
+    ['north', 'nɔrθ', 'th', 'θ', '末尾 th 用舌尖贴近牙齿送气，声带不振动。'],
+    ['south', 'saʊθ', 'ou', 'aʊ', '口形从张开滑向圆唇，再接末尾 th。'],
+    ['east', 'ist', 'ea', 'i', 'ea 只读一个元音，接着直接收 st。'],
+    ['west', 'wɛst', 'e', 'ɛ', 'e 与 pen 中的元音相同，最后接 st。'],
+
+    ['invite', 'ɪnˈvaɪt', 'v', 'v', '表示“邀请”时第二拍读重，v 的气流带声。'],
+    ['borrow', 'ˈbɑroʊ', 'ow', 'oʊ', '重音在第一拍，末尾 ow 从较开的口形滑向圆唇。'],
+    ['lend', 'lɛnd', 'e', 'ɛ', '元音和 pen 的 e 相同，最后轻收 nd。'],
+    ['return', 'rɪˈtɝn', 'ur', 'ɝ', '第二拍读重，ur 是一个带 r 音色的元音。'],
+    ['share', 'ʃɛr', 'sh', 'ʃ', 'sh 合在一起发摩擦音，不读成两个字母名。'],
+    ['choose', 'tʃuz', 'oo', 'u', 'oo 读 u，末尾的 s 读成带声的 z。'],
+    ['join', 'dʒɔɪn', 'oi', 'ɔɪ', 'oi 从圆唇的元音滑向 ɪ，连成一拍。'],
+    ['help', 'hɛlp', 'e', 'ɛ', '把 e 读成 pen 中的元音，然后连上 lp。'],
+    ['agree', 'əˈɡri', 'ee', 'i', '开头 a 读轻，末尾 ee 所在的一拍读重。'],
+    ['explain', 'ɪkˈspleɪn', 'ai', 'eɪ', '第二拍读重，ai 从 e 滑向 ɪ。'],
+
+    ['weather', 'ˈwɛðɚ', 'th', 'ð', '中间 th 与 mother 相同，送气时有振动。'],
+    ['season', 'ˈsizən', 'ea', 'i', '第一拍的 ea 与 eat 的 ea 同音。'],
+    ['spring', 'sprɪŋ', 'ng', 'ŋ', '结尾的 ng 是一个鼻音，直接收住。'],
+    ['summer', 'ˈsʌmɚ', 'u', 'ʌ', '第一拍读重，u 和 sun 中的元音一样。'],
+    ['autumn', 'ˈɔtəm', 'm', 'm', '末尾双唇闭合发 m，后面的 n 不出声。'],
+    ['winter', 'ˈwɪntɚ', 'i', 'ɪ', '第一拍读重，元音与 swim 中的 i 同音。'],
+    ['cloud', 'klaʊd', 'ou', 'aʊ', 'ou 连成一拍，由张口滑向圆唇。'],
+    ['wind', 'wɪnd', 'i', 'ɪ', '表示“风”时 i 和 fish 的元音相同。'],
+    ['rain', 'reɪn', 'ai', 'eɪ', 'ai 合起来从 e 滑向 ɪ，末尾用 n 收住。'],
+    ['umbrella', 'əmˈbrɛlə', 'e', 'ɛ', '重音在中间一拍，e 与 pen 中的元音相同。'],
+
+    ['tired', 'taɪɚd', 'i', 'aɪ', '中间的 i 从 a 滑向 ɪ，再连到带 r 音色的结尾。'],
+    ['hungry', 'ˈhʌŋɡri', 'u', 'ʌ', '第一拍读重，注意这里鼻音后还接一个 g 音。'],
+    ['thirsty', 'ˈθɝsti', 'ir', 'ɝ', '第一拍读重，ir 合成一个带 r 音色的元音。'],
+    ['afraid', 'əˈfreɪd', 'ai', 'eɪ', '开头 a 很轻，后面的 ai 在重读音节里。'],
+    ['proud', 'praʊd', 'ou', 'aʊ', '和 cloud 一样，ou 从张口滑向圆唇。'],
+    ['ready', 'ˈrɛdi', 'ea', 'ɛ', '第一拍读重，这里的 ea 跟 bread 的 ea 同音。'],
+    ['careful', 'ˈkɛrfəl', 'f', 'f', '重音在第一拍，后一拍的 f 用上齿轻触下唇。'],
+    ['quiet', 'ˈkwaɪət', 'i', 'aɪ', '先听重读的 aɪ，再接轻轻的一拍。'],
+    ['healthy', 'ˈhɛlθi', 'th', 'θ', '末尾 y 前的 th 送气，声带不振动。'],
+    ['safe', 'seɪf', 'a', 'eɪ', '中间 a 读 eɪ，最后用 f 收尾。']
+  ];
+
+  window.VocabIPA = Object.fromEntries(rows.map(([word, ipa, letters, sound, tip, parts]) =>
+    [word, { ipa, focus: { letters, sound, tip }, ...(parts ? { parts } : {}) }]));
+})();

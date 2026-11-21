@@ -18,10 +18,11 @@
     '<div class="lh-profile"><div class="lh-wallet" aria-label="学习等级与金币"></div>'+
     '<button class="lh-dress" type="button" data-learn="dress"><img alt="" src="art/avatar.png"><span>换装</span></button>'+
     '<button class="lh-medals" type="button" data-learn="medals"><span aria-hidden="true">✦</span> 勋章</button></div></div></header>'+
-    '<div class="lh-width lh-main"><section class="lh-heading" aria-labelledby="lh-title"><div class="lh-titleline"><h1 id="lh-title">轻松学</h1><span class="lh-round-size">每轮 3 题</span></div>'+
+    '<div class="lh-width lh-main"><section class="lh-heading" aria-labelledby="lh-title"><div class="lh-titleline"><h1 id="lh-title">英语闯关</h1><span class="lh-round-size">每轮 3 题</span><button type="button" class="lh-vocab-entry" data-learn="vocab"><img alt="" src="art/english.png"><span><b>单词练习</b><small>3 词一组 · 听音拼词</small></span></button></div>'+
     '<nav class="lh-filters" aria-label="选择学习科目">'+
+    '<button class="lh-english-track" type="button" data-scope="english"><img alt="" src="art/english.png"><span>英语主线</span></button>'+
+    subjects.filter(s=>s.id!=='english').map(s=>'<button type="button" data-scope="'+esc(s.id)+'"><img alt="" src="'+subjectArt[s.id]+'">'+esc(s.name)+'</button>').join('')+
     '<button type="button" data-scope="all"><i class="lh-four" aria-hidden="true"></i>四科轮练</button>'+
-    subjects.map(s=>'<button type="button" data-scope="'+esc(s.id)+'"><img alt="" src="'+subjectArt[s.id]+'">'+esc(s.name)+'</button>').join('')+
     '</nav></section><div class="lh-workspace"><section id="learn-trail-inline"></section><section class="lh-page" aria-label="当前学习任务"></section></div>'+
     '<nav class="lh-extra" aria-label="其他活动"><button type="button" data-learn="hub">群岛探险</button><span aria-hidden="true">·</span>'+
     '<button type="button" data-learn="city">日落港</button><span aria-hidden="true">·</span><button type="button" data-learn="shop">道具商店</button></nav>'+
@@ -31,6 +32,18 @@
   const live = home.querySelector('#lh-live');
   const trail = home.querySelector('#learn-trail-inline');
   const sizeIndicator = home.querySelector('.lh-round-size');
+  const pageTitle = home.querySelector('#lh-title');
+  const englishLabel = home.querySelector('.lh-english-track span');
+  const vocabButton=home.querySelector('.lh-vocab-entry');
+  function updateVocabEntry() {
+    const api=window.WordPractice;
+    vocabButton.hidden=!window.WordPracticeUI || state?.subject!=='english';
+    if(vocabButton.hidden||!api)return;
+    const due=api.stats('primary').due+api.stats('junior').due;
+    const copy=due?due+' 个词待复习':'3 词一组 · 听音拼词';
+    const detail=vocabButton.querySelector('small');
+    if(detail.textContent!==copy)detail.textContent=copy;
+  }
   const dress = home.querySelector('[data-learn="dress"]');
   function updateOutfit(value=window.LearnWardrobe?.avatar?.()) {
     if(!value?.src || !dress) return;
@@ -70,9 +83,20 @@
   function clue(q,review) {
     if(review || !q.clue) return '';
     const picture=landscapes[q.subject] || landscapes.english;
-    return '<aside class="lh-clue" aria-labelledby="lh-clue-label"><div class="lh-clue-copy">'+
-      '<b class="lh-clue-label" id="lh-clue-label"><img src="art/sprite.png" alt="" width="26" height="26">阿芽的线索</b>'+
-      '<p>'+esc(q.clue)+'</p></div><div class="lh-scenery" aria-hidden="true"><img alt="" src="'+picture+'"></div></aside>';
+    const example=q.subject==='english'?window.LearnFacts?.[q.id]?.model:null;
+    const hasModel=Boolean(example?.en && example?.zh);
+    const listen=hasModel?'<span class="lh-model-audio" data-lh-voice>可照着范句跟读</span>':'';
+    const compact=hasModel?'<details class="lh-short-note"><summary>展开点拨</summary><p>'+esc(q.clue)+'</p></details>':'';
+    const model=hasModel?'<div class="lh-model"><strong lang="en" id="lh-model-text">'+esc(example.en)+'</strong>'+
+      '<span lang="zh-CN">'+esc(example.zh)+'</span></div>':'';
+    return '<aside class="lh-clue'+(hasModel?' lh-with-model':'')+'" aria-labelledby="lh-clue-label"><div class="lh-clue-copy">'+
+      '<div class="lh-clue-top"><b class="lh-clue-label" id="lh-clue-label"><img src="art/sprite.png" alt="" width="26" height="26">阿芽的线索</b>'+listen+'</div>'+
+      '<p class="lh-rule">'+esc(q.clue)+'</p>'+model+compact+'</div><div class="lh-scenery" aria-hidden="true"><img alt="" src="'+picture+'"></div></aside>';
+  }
+  function mountVoice() {
+    if(home.hidden || !state || state.mode==='review' || state.phase!=='question' || state.question?.subject!=='english')return;
+    const host=panel.querySelector('[data-lh-voice]');
+    if(host)window.LearnVoice?.mountModel(host,state.question.id);
   }
   function questionField(s) {
     const q=s.question, correct=s.phase==='feedback',review=s.mode==='review';
@@ -89,7 +113,7 @@
       return '<div class="lh-content">'+pass+prompt+'<div class="lh-answer-good"><b><span class="lh-check" aria-hidden="true">✓</span>'+
         esc(choice || '回答正确')+'</b><p>'+esc(q.explain)+'</p>'+retryNote+'</div><div class="lh-nextline">'+
         '<button class="lh-primary" type="button" data-learn="next">'+
-        nextLabel+'</button>'+resultNote+'</div></div>';
+        nextLabel+'</button>'+resultNote+'</div>'+(q.subject==='english'?'<div data-english-build></div>':'')+'</div>';
     }
     const choices=q.options.map((option,i)=>{
       const spent=q.eliminated===i,tried=wrong.includes(i), mark=spent?'灵感卡已排除':tried?'已试过':'';
@@ -136,10 +160,17 @@
   }
 
   function render(snapshot = round.getState()) {
-    state=snapshot;updateWallet();
+    window.LearnVoice?.stop();
+    state=snapshot;updateWallet();updateVocabEntry();
+    const scope=safescope(snapshot.subject);
+    pageTitle.textContent=scope==='all'?'四科轮练':(subjects.find(s=>s.id===scope)?.name || '英语')+'闯关';
+    englishLabel.textContent=scope==='english'?'英语主线':'继续英语';
     sizeIndicator.textContent=snapshot.topicId?'知识点挑战':snapshot.roundSize===3?'每轮 3 题':'本轮 '+snapshot.roundSize+' 题';
     for(const button of home.querySelectorAll('[data-scope]')) button.setAttribute('aria-pressed',String(button.dataset.scope===safescope(snapshot.subject)));
     panel.innerHTML=header(snapshot)+(snapshot.phase==='complete'?complete(snapshot):questionField(snapshot));
+    mountVoice();
+    const builder=panel.querySelector('[data-english-build]');
+    if(builder)window.EnglishBuild?.mount?.(builder,snapshot.question.id);
     window.LearnTrail?.mountInline?.(trail,scopeForTrail(snapshot));
   }
   function safescope(scope) {return subjects.some(s=>s.id===scope)?scope:'all';}
@@ -161,6 +192,7 @@
   }
   function doLearning(key,value) {
     if(busy || home.hidden)return;
+    if(['hub','city','shop','dress','medals','vocab'].includes(key))window.LearnVoice?.stop();
     busy=true;
     try {
       if(key==='answer') {
@@ -184,6 +216,7 @@
       } else if(key==='hub') window.LearnRoutes?.openHub();
       else if(key==='city') window.LearnRoutes?.openCity();
       else if(key==='shop') window.HarborShop?.open('shop');
+      else if(key==='vocab') window.WordPracticeUI?.open(vocabButton);
       else if(key==='dress') window.LearnWardrobe?.open?.(dress);
       else if(key==='medals') window.LearnTrail?.openMedals?.(home.querySelector('[data-learn="medals"]'));
     } finally {busy=false;}
@@ -210,6 +243,7 @@
   });
   game.subscribe(()=>{if(!busy&&!home.hidden)updateWallet();});
   window.addEventListener('harbor-shop-visibility',e=>{
+    if(e.detail?.open===true){window.LearnVoice?.stop();return;}
     if(e.detail?.open!==false||home.hidden)return;
     render();
   });
@@ -217,10 +251,13 @@
     if(!e.detail?.ok||!e.detail.state)return;
     response=null;render(e.detail.state);announce('进入'+topicName(e.detail.state.question || {})+'。');focusQuestion();
   });
+  window.addEventListener('learn-voice-ready',mountVoice);
+  window.addEventListener('word-practice-ready',updateVocabEntry);
+  window.addEventListener('vocab-progress',updateVocabEntry);
   window.addEventListener('learn-outfit-change',e=>updateOutfit(e.detail));
   window.LearnHome=Object.freeze({
     open(){home.hidden=false;render();},
-    close(){home.hidden=true;},
+    close(){window.LearnVoice?.stop();home.hidden=true;},
     focusQuestion
   });
   updateOutfit();render();

@@ -112,3 +112,19 @@ test('corrupt economy fields and disabled storage cannot break learning or creat
   assert.ok(s.game.answerCityQuiz(m.id,m.recall.answer).rewarded);assert.equal(s.game.buyItem('insight').coins,2);
   assert.equal(s.game.getState().inventory.insight,1);
 });
+
+test('vocabulary spelling rewards survive purchases and reloads, and a synonym cannot claim the focus word',()=>{
+  const storage=new Map(),g=openGame(storage).game;
+  assert.equal(g.rewardVocabulary('close','shut').rewarded,false);
+  assert.equal(g.rewardVocabulary('absent-from-bank','absent-from-bank').rewarded,false);
+  for(const [word,answer] of [['book','BOOK'],['bag','bag'],['pen','pen'],['practice','practise']]){
+    assert.equal(g.rewardVocabulary(word,answer).rewarded,true);
+  }
+  assert.equal(g.getState().coins,8);
+  assert.equal(g.buyItem('insight').ok,true);
+  const back=openGame(storage).game;
+  assert.equal(back.getState().xp,12);
+  assert.equal(back.getState().coins,0);
+  assert.equal(back.getState().inventory.insight,1);
+  assert.equal(back.rewardVocabulary('practice','practice').rewarded,false);
+});

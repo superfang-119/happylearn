@@ -31,10 +31,10 @@ function finish(s) {
   assert.equal(state.phase,'complete');return state;
 }
 
-test('fresh English route lists six ordered topics per subject and prevents skipping any gate',()=>{
+test('fresh English route lists eighteen ordered topics and the other routes have six and prevents skipping any gate',()=>{
   const s=visit(),p=s.round.getTopicProgress(),e=p.bySubject.english;
-  assert.equal(p.total,24);assert.equal(p.passed.length,0);
-  for(const route of Object.values(p.bySubject)){assert.equal(route.length,6);assert.equal(route[0].status,'current');assert.ok(route.slice(1).every(t=>t.status==='locked'));}
+  assert.equal(p.total,36);assert.equal(p.passed.length,0);
+  for(const [subject,route] of Object.entries(p.bySubject)){assert.equal(route.length,subject==="english"?18:6);assert.equal(route[0].status,'current');assert.ok(route.slice(1).every(t=>t.status==='locked'));}
   assert.equal(s.round.getState().subject,'english');assert.equal(s.round.getState().question.title,s.facts[e[0].id].topic);
   assert.equal(s.round.openTopic(e[1].id).ok,false);
   const done=finish(s);assert.deepEqual([done.baseDone,done.roundXp,done.roundCoins],[3,45,30]);
@@ -88,14 +88,14 @@ test('new daily prompts settle once in the shared wallet, purchased insight appl
   b.round.openTopic(second);assert.equal(b.solve().rewarded,false);
 });
 
-test('all twenty-four gates can be earned and re-studied without duplicate badges or same-day XP',()=>{
+test('all thirty-six gates can be earned and re-studied without duplicate badges or same-day XP',()=>{
   const storage=new Map(),s=visit(storage);
   for(const topic of s.round.getTopicProgress().topics){
     assert.ok(s.round.openTopic(topic.id).ok);assert.equal(s.solve().passedNow,true);s.round.next();
   }
-  assert.equal(s.round.getTopicProgress().passed.length,24);assert.equal(s.game.getState().coins,240);
+  assert.equal(s.round.getTopicProgress().passed.length,36);assert.equal(s.game.getState().coins,360);
   const b=visit(storage),first=b.round.getTopicProgress().topics[0];
-  b.round.openTopic(first.id);assert.equal(b.solve().passedNow,false);assert.equal(b.game.getState().xp,360);
+  b.round.openTopic(first.id);assert.equal(b.solve().passedNow,false);assert.equal(b.game.getState().xp,540);
   assert.equal(b.events.length,0);
 });
 
@@ -132,4 +132,16 @@ test('interrupted reward receipt is reconciled after reload and does not grant t
   const back=visit(backend),r=back.round.getState();
   assert.equal(r.phase,'feedback');assert.equal(r.roundCoins,10);
   assert.equal(back.game.getState().coins,10);assert.equal(back.round.getTopicProgress().passed.length,1);
+});
+
+test('switching back to English resumes the focused English challenge across a reload',()=>{
+  const storage=new Map(),s=visit(storage);
+  const first=s.round.getTopicProgress().bySubject.english[0];
+  s.round.openTopic(first.id);s.wrong();
+  s.round.selectSubject('history');
+  const b=visit(storage);
+  assert.equal(b.round.getState().subject,'history');
+  const resumed=b.round.selectSubject('english');
+  assert.equal(resumed.topicId,first.id);
+  assert.equal(resumed.question.wrong.length,1);
 });

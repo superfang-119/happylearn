@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#10141e">
-  <meta name="description" content="七年级上册四科轻松学。每轮练三道题，读线索、选答案、换个情境记住知识。">
-  <title>快乐学 · 四科轻松学</title>
+  <meta name="description" content="从小学常用词接到初中英语，每次学三个词，遮住答案再回想。还可以逐关练英语、地理、历史和语文。">
+  <title>快乐学 · 英语闯关与单词练习</title>
   <link rel="icon" type="image/png" href="art/logo.png">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="game.css">
@@ -14,13 +14,25 @@
   <link rel="stylesheet" href="learn.css">
   <link rel="stylesheet" href="learn-trail.css">
   <link rel="stylesheet" href="wardrobe.css">
+  <link rel="stylesheet" href="english-build.css">
+  <link rel="stylesheet" href="vocab.css">
+  <link rel="stylesheet" href="phonics.css">
   <script src="content.js" defer></script>
+  <script src="vocab-data.js" defer></script>
   <script src="game.js" defer></script>
   <script src="shop.js" defer></script>
   <script src="learn-facts.js" defer></script>
   <script src="learn-round.js" defer></script>
   <script src="learn-trail.js" defer></script>
   <script src="wardrobe.js" defer></script>
+  <script src="english-build.js" defer></script>
+  <script src="vocab-ipa.js" defer></script>
+  <script src="word-audio-data.js" defer></script>
+  <script src="vowel-audio-data.js" defer></script>
+  <script src="word-audio.js" defer></script>
+  <script src="phonics.js" defer></script>
+  <script src="vocab-session.js" defer></script>
+  <script src="vocab-ui.js" defer></script>
   <script src="learn.js" defer></script>
   <script src="hub.js" defer></script>
   <script src="voice.js" defer></script>
@@ -75,7 +87,7 @@
         <div class="spirit-box"><span class="spirit-floor"></span><img src="art/sprite.png" width="59" height="56" alt=""></div>
         <div class="guide-copy"><h2 id="guide-title">精灵向导<span>· 阿芽</span></h2><p id="guide-line">第一次出发？从晨曦森林开始，和我一起找线索吧！</p></div>
       </section>
-      <section class="progress-strip" aria-labelledby="progress-title"><div class="progress-heading"><h2 id="progress-title"><i data-icon="crystal"></i>记忆碎片</h2><b id="fragment-count">0 / 27</b></div><div class="progress-track"><div id="overall-bar"></div></div><div class="memory-footer"><p id="progress-copy">每完成一个任务，点亮一枚碎片。</p><button type="button" id="due-link" data-do="review-due" hidden></button></div></section>
+      <section class="progress-strip" aria-labelledby="progress-title"><div class="progress-heading"><h2 id="progress-title"><i data-icon="crystal"></i>记忆碎片</h2><b id="fragment-count">0 / 39</b></div><div class="progress-track"><div id="overall-bar"></div></div><div class="memory-footer"><p id="progress-copy">每完成一个任务，点亮一枚碎片。</p><button type="button" id="due-link" data-do="review-due" hidden></button></div></section>
     </div>
     <noscript>请启用 JavaScript，以打开群岛、收集线索并保存冒险进度。</noscript>
   </main>
@@ -123,6 +135,7 @@
       <div id="phone-body" class="phone-body"></div>
     </dialog>
   </section>
+  <dialog id="vocab-dialog" aria-labelledby="vocab-title"></dialog>
   <dialog id="learn-medals" aria-labelledby="learn-medals-title"></dialog>
   <dialog id="learn-wardrobe" aria-labelledby="wardrobe-title"></dialog>
   <dialog id="harbor-shop" aria-labelledby="shop-title"></dialog>

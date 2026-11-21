@@ -1,0 +1,57 @@
+.eb-builder {
+  margin-top: 15px;
+  font-size: .95rem;
+}
+.eb-builder[hidden] { display: none; }
+.eb-builder button {
+  min-height: 42px;
+  padding: .42rem .82rem;
+  font: inherit;
+  line-height: 1.3;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.eb-builder button:focus-visible { outline: 3px solid #24796a; outline-offset: 3px; }
+.eb-launch, .eb-chip {
+  background: #fff;
+  border: 1px solid #a9c2ba;
+  color: #1c6156;
+  border-radius: 8px;
+  font-weight: 650;
+}
+.eb-launch:hover, .eb-chip:hover { background: #edf7f1; }
+.eb-sheet {
+  padding: 14px 16px;
+  border: 1px solid #bfd6cc;
+  border-radius: 12px;
+  background: #f3f8f3;
+  color: #233e37;
+}
+.eb-header { display: flex; justify-content: space-between; align-items: center; gap: .8rem; }
+.eb-header strong { font-size: 1rem; }
+.eb-hide, .eb-back {
+  border: 0;
+  background: transparent;
+  color: #265e52;
+  text-decoration: underline;
+  text-underline-offset: .22em;
+}
+.eb-translation { margin: .2rem 0 .6rem; line-height: 1.5; }
+.eb-line {
+  margin: 0 0 .65rem;
+  padding: .65rem .75rem;
+  min-height: 44px;
+  border: 1px dashed #a5bdb3;
+  border-radius: 7px;
+  background: #fff;
+  color: #173c32;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.eb-line.eb-empty { font-weight: 400; color: #536a61; }
+.eb-line.eb-complete { border-style: solid; border-color: #57967c; }
+.eb-pool { display: flex; flex-wrap: wrap; gap: .5rem; }
+.eb-chip { min-width: 44px; box-shadow: 0 2px 0 #bad2c8; }
+.eb-message { line-height: 1.45; color: #275a4d; margin: .65rem 0 0; }
+.eb-message:empty { margin: 0; }
+@media (max-width: 420px) { .eb-sheet { padding: 10px 12px; } }

@@ -16,7 +16,7 @@ function openGame(storage = new Map(), clock = Date) {
     window: { addEventListener() {} }, document: { getElementById: () => dialog },
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
   };
-  for (const filename of ['content.js', 'game.js']) {
+  for (const filename of ['content.js', 'vocab-data.js', 'game.js']) {
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../dist', filename), 'utf8'), sandbox);
   }
   const click = (act, value = '') => handlers.get('click')({ target: { closest: () => ({dataset: {act, value: String(value)}}) } });

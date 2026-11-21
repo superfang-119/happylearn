@@ -25,7 +25,7 @@ function setup(counts = [0,0,0,0], storage = new Map(), useTrail = true) {
   const window = {addEventListener:(name,fn) => handlers.set(name,fn),
     dispatchEvent:event => notices.push(event), localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}};
   function rows(id, count) {
-    return Array.from({length:6}, (_, i) => ({id:id+i,status:i<count?'passed':'locked'}));
+    return Array.from({length:id==='english'?18:6}, (_, i) => ({id:id+i,status:i<count?'passed':'locked'}));
   }
   window.LearnRound = {getTopicProgress:() => {
     const bySubject = Object.fromEntries(subjectIds.map((id,i)=>[id,rows(id,counts[i])]));
@@ -33,7 +33,7 @@ function setup(counts = [0,0,0,0], storage = new Map(), useTrail = true) {
   }};
   if (useTrail) window.LearnTrail = {snapshot:() => ({
     passedIds:window.LearnRound.getTopicProgress().passed,
-    bySubject:Object.fromEntries(subjectIds.map((id,i)=>[id,{passed:counts[i],total:6}]))
+    bySubject:Object.fromEntries(subjectIds.map((id,i)=>[id,{passed:counts[i],total:id==='english'?18:6,foundationPassed:Math.min(counts[i],6)}]))
   })};
   vm.runInNewContext(source,{window,document,CustomEvent});
   const click = data => dialogEvents.get('click')({target:node(data)});
@@ -77,4 +77,18 @@ test('unknown or unearned saved looks fall back; storage events and blocked writ
   s.window.localStorage.setItem=()=>{throw Error('blocked');};
   s.api.open();s.click({wear:'courier'});assert.equal(s.api.avatar().id,'courier');
   assert.match(s.live.textContent,/本次打开期间/);
+});
+
+test('an outfit unlocked by the original six English gates stays equipped after the English course expands to 18',()=>{
+  for(const useTrail of [true,false]){
+    const store=new Map([[key,'starpilot']]);
+    const locked=setup([5,0,0,0],store,useTrail);
+    locked.api.open();locked.click({outfit:'starpilot'});
+    assert.equal(locked.api.avatar().id,'pathfinder');
+    assert.match(locked.dialog.innerHTML,/基础关还差 1 关/);
+    const preserved=setup([6,0,0,0],store,useTrail);
+    assert.equal(preserved.api.avatar().id,'starpilot');
+    preserved.api.open();preserved.click({outfit:'starpilot'});
+    assert.match(preserved.dialog.innerHTML,/英语的前 6 个基础关/);
+  }
 });
