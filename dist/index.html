@@ -4,15 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#10141e">
-  <meta name="description" content="在拾光群岛探索英语、地理、历史和语文。寻找线索、收集知识卡，开始你的七年级四科冒险。">
-  <title>拾光群岛 · 快乐学</title>
+  <meta name="description" content="在拾光群岛探索英语、地理、历史和语文。驾驶跑车穿行海港小城，完成委托，收集知识卡。">
+  <title>日落港 · 拾光群岛</title>
   <link rel="icon" type="image/png" href="art/logo.png">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="game.css">
+  <link rel="stylesheet" href="city.css">
   <script src="content.js" defer></script>
   <script src="game.js" defer></script>
   <script src="hub.js" defer></script>
   <script src="voice.js" defer></script>
+  <script src="vendor/three.min.js" defer></script>
+  <script src="city-world.js" defer></script>
+  <script src="city-jobs.js" defer></script>
+  <script src="city-perspective.js" defer></script>
+  <script src="city-map.js" defer></script>
+  <script src="city-engine.js" defer></script>
+  <script src="city-audio.js" defer></script>
+  <script src="city-rally.js" defer></script>
+  <script src="city.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#worlds">跳到探索区域</a>
@@ -38,7 +48,7 @@
         <div class="chapter"><i data-icon="flag"></i><span>CHAPTER 01</span><b></b> 群岛启航</div>
         <h1 id="island-title">拾光群岛</h1>
         <p>穿过四座知识岛屿，收集散落的记忆碎片。</p>
-        <div class="hero-actions"><button data-do="start" class="gold-button"><i data-icon="play"></i><span id="start-label">开始冒险</span></button><button data-do="guide" class="glass-button"><i data-icon="guide"></i>玩法指南</button></div>
+        <div class="hero-actions"><button data-city-open class="gold-button">进入日落港</button><button data-do="start" class="glass-button"><i data-icon="play"></i><span id="start-label">开始冒险</span></button><button data-do="guide" class="glass-button"><i data-icon="guide"></i>玩法指南</button></div>
       </div>
       <div class="hero-coordinate"><span class="glint" aria-hidden="true">✦</span> 七年级上册 · 四科探险</div>
     </section>
@@ -55,6 +65,48 @@
     </div>
     <noscript>请启用 JavaScript，以打开群岛、收集线索并保存冒险进度。</noscript>
   </main>
+  <section id="city" class="port" aria-label="日落港开放世界" hidden tabindex="-1">
+    <div id="city-scene" class="port-scene" aria-label="可步行和驾驶的海港城区，可拖动画面环视"></div>
+    <div class="port-vignette" aria-hidden="true"></div>
+    <div class="port-top">
+      <div class="port-sign"><span class="port-logo" aria-hidden="true">☀</span><div><small>拾光群岛</small><h1>日落港</h1></div></div>
+      <div class="port-nav">
+        <button id="port-phone-open" type="button" class="port-tool"><span aria-hidden="true">▤</span> 委托手机</button>
+        <button id="port-leave" type="button" class="port-tool"><span aria-hidden="true">⌂</span> 群岛大厅</button>
+      </div>
+    </div>
+    <div class="port-task">
+      <div class="port-task-head"><span class="port-live-dot"></span><strong id="port-category">港城电台</strong><span id="port-phase"></span></div>
+      <h2 id="port-objective"></h2>
+      <p id="port-clue"></p>
+      <div class="port-task-foot"><span id="port-distance"></span><button id="port-hint" type="button">听个提示</button></div>
+    </div>
+    <div class="port-toast" id="port-toast" role="status" aria-live="polite" hidden></div>
+    <div class="port-reward" id="port-reward" role="status" hidden><b id="port-reward-label"></b><strong id="port-reward-title"></strong><p id="port-reward-text"></p><button id="port-reward-next" type="button">查看委托手机</button><button id="port-reward-dismiss" type="button" aria-label="收起奖励">×</button></div>
+    <button type="button" id="port-radar-open" class="port-radar" aria-label="展开全城地图" title="展开地图（M）">
+      <canvas id="port-radar" width="210" height="210" aria-label="北朝上的小地图，显示玩家、车辆和当前目的地"></canvas>
+      <div class="port-location"><span aria-hidden="true">◆</span><b id="port-district">棕榈大道</b></div>
+    </button>
+    <div class="port-dashboard">
+      <div class="port-speed" aria-label="移动状态"><span id="port-transport">步行</span><strong id="port-speed">0</strong><small>km/h</small></div>
+      <button id="port-action" type="button"><kbd>E</kbd><span>上车</span></button>
+    </div>
+    <div class="port-direction" aria-label="方向控制">
+      <button type="button" class="p-forward" data-move="forward" aria-label="前进或加速">▲</button>
+      <button type="button" class="p-left" data-move="left" aria-label="向左转">◀</button>
+      <button type="button" class="p-back" data-move="back" aria-label="后退或刹车">▼</button>
+      <button type="button" class="p-right" data-move="right" aria-label="向右转">▶</button>
+    </div>
+    <div class="port-bottom">
+      <button id="port-controls" type="button" aria-pressed="false" title="显示或隐藏屏幕方向键，拖动画面可环视"><kbd>WASD</kbd> 移动 <span>·</span> <kbd>Shift</kbd> 奔跑</button>
+      <label class="port-radio">♫ <span>音响</span><select id="port-radio" data-city-radio aria-label="车载音响"><option value="off">静音</option><option value="motor" selected>引擎声</option><option value="wave">落日合成器</option><option value="coast">海岸律动</option></select></label>
+    </div>
+    <dialog id="port-phone" aria-labelledby="port-phone-title">
+      <div class="phone-top"><div><small>SUNSET HARBOR</small><h2 id="port-phone-title">港城手机</h2></div><button id="port-phone-close" type="button" aria-label="收起手机">×</button></div>
+      <nav class="phone-tabs" aria-label="手机应用"><button data-app="jobs" type="button">委托</button><button data-app="garage" type="button">车库</button><button data-app="cards" type="button">知识卡</button><button data-app="map" type="button">地图</button></nav>
+      <div id="phone-body" class="phone-body"></div>
+    </dialog>
+  </section>
   <dialog id="game-dialog" aria-label="群岛探险"></dialog>
   <dialog id="hub-dialog" aria-labelledby="help-title"><div class="guide-modal"><button class="close-help" data-do="close-guide" aria-label="关闭玩法指南">×</button><span class="manual-tag"><i data-icon="guide"></i> 探险手册</span><h2 id="help-title">第一次登岛</h2><ol><li><strong>选一座岛，去找线索</strong><p>点开喜欢的区域，再选一个短任务。跟着场景里的提示观察。</p></li><li><strong>试着行动，随时求助</strong><p>读完线索再做选择。遇到难题可以看提示，答错也能继续尝试。</p></li><li><strong>带走卡片，换个情境再想想</strong><p>完成任务即可收集知识卡。在「知识图鉴」里复习，每座岛各完成一个任务后还能开启跨岛远征。</p></li></ol><button class="gold-button" data-do="guide-start"><i data-icon="play"></i>出发探险</button></div></dialog>
 </body>

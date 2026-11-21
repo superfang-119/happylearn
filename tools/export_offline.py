@@ -22,8 +22,8 @@ def embed_images(text):
 
 def export(destination):
     html = (DIST / "index.html").read_text(encoding="utf-8")
-    styles = re.findall(r'<link rel="stylesheet" href="([\w.-]+)">', html)
-    scripts = re.findall(r'<script src="([\w.-]+)" defer></script>', html)
+    styles = re.findall(r'<link rel="stylesheet" href="([\w./-]+)">', html)
+    scripts = re.findall(r'<script src="([\w./-]+)" defer></script>', html)
     for filename in styles:
         stylesheet = embed_images((DIST / filename).read_text(encoding="utf-8"))
         html = html.replace(f'<link rel="stylesheet" href="{filename}">', f"<style>\n{stylesheet}\n</style>")
@@ -35,7 +35,12 @@ def export(destination):
     bootstrap = "<script>window.HappyLearnImages=" + json.dumps(sources) + ";</script>"
     body_scripts = [bootstrap]
     for filename in scripts:
-        source = embed_images((DIST / filename).read_text(encoding="utf-8"))
+        source = (DIST / filename).read_text(encoding="utf-8")
+        if filename == "vendor/three.min.js":
+            license_text = (DIST / "vendor/THREE-LICENSE.txt").read_text(encoding="utf-8")
+            source = "/*!\n" + license_text + "\n*/\n" + source
+        else:
+            source = embed_images(source)
         # These sources are trusted project code. Keep literal closing tags safe inside inline JS.
         source = re.sub(r"</script", lambda _: r"<\/script", source, flags=re.IGNORECASE)
         body_scripts.append(f"<script>\n{source}\n</script>")
