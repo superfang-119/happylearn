@@ -30,7 +30,7 @@
   let toastTimer = 0, uiTime = -1000, method = '3d', panelOpener = null;
   let heldPointers = new Map(), lastAutoMark = null;
   let shownDrivingControls = false;
-  let cityHint = '';
+  let cityHint = '', rewardSubject = '';
   let audioReady = false;
   const radio = $('#port-radio');
   if (['off','motor','wave','coast'].includes(prefs.station)) radio.value=prefs.station;
@@ -51,7 +51,7 @@
   }
   function setText(el, value) { if(el.textContent !== value) el.textContent = value; }
   function setPaused() {
-    paused = !visible || document.hidden || phone.open;
+    paused = !visible || document.hidden || phone.open || $('#harbor-shop').open;
     engine?.pause(paused);
     window.CityAudio?.setPaused(paused);
     rally.freeze();
@@ -121,7 +121,9 @@
     if(race.active && race.index) setText(phase,(race.elapsed/1000).toFixed(1) + ' s · ' + race.index + '/' + (race.total-1));
     window.CityMap.drawRadar(radar,player,markers);
   }
-  function celebrate(label,title,copy) {
+  function celebrate(label,title,copy,subject = '') {
+    rewardSubject = subject;
+    $('#port-reward-next').textContent = subject ? '答一道题赚金币' : '查看委托手机';
     $('#port-reward-label').textContent = label;
     $('#port-reward-title').textContent = title;
     $('#port-reward-text').textContent = copy;
@@ -140,8 +142,9 @@
     if (!['progress','completed'].includes(result.type)) return;
     cityHint = '';
     if (result.type === 'completed') {
-      celebrate(result.fresh ? '委托完成 · 新车漆已解锁' : '再次完成委托',contracts.find(j=>j.id===result.id).title,
-        (result.memory || result.message) + (result.fresh ? '　车库已加入「'+result.livery+'」。' : ''));
+      const contract = contracts.find(j=>j.id===result.id);
+      celebrate(result.fresh ? '委托完成 · 新车漆已解锁' : '再次完成委托',contract.title,
+        (result.memory || result.message) + (result.fresh ? '　车库已加入「'+result.livery+'」。' : ''), contract.subject === 'mixed' ? '' : contract.subject);
     } else {
       window.CityAudio?.cue('pickup');
       toast(result.message,5500);
@@ -190,11 +193,24 @@
       if(fresh||pinned)toast((fresh?'发现地标 · ':'抵达 · ')+place.name,2600);
     }
   }
-  function paintCar() {
-    const unlocked = jobs.getState().completed.includes(prefs.paint);
-    const hex = unlocked && contracts.find(j=>j.id===prefs.paint)?.color;
-    engine?.setDrivingColor(hex || '#ee735e');
+  const shopPaint = {id:'paint', livery:'霓虹玫红车漆', color:'#f5398d'};
+  let appliedEngine = null, appliedColor = null, appliedShoes = null;
+  function selectedPaint(inventory,completed) {
+    if(inventory?.owned?.includes('paint') && inventory.equipped?.paint) return shopPaint;
+    return completed.includes(prefs.paint) ? contracts.find(j=>j.id===prefs.paint) : null;
   }
+  function applyEquipment(inventory=window.Game?.getState()) {
+    if(!engine) return;
+    const hex = selectedPaint(inventory,jobs.getState().completed)?.color || '#ee735e';
+    const shoes = Boolean(inventory?.owned?.includes('shoes') && inventory.equipped?.shoes);
+    if(engine!==appliedEngine || hex!==appliedColor) engine.setDrivingColor(hex);
+    if(engine!==appliedEngine || shoes!==appliedShoes) engine.setRunningShoes(shoes);
+    appliedEngine=engine;appliedColor=hex;appliedShoes=shoes;
+  }
+  window.Game?.subscribe(inventory=>{
+    applyEquipment(inventory);
+    if(visible && phone.open && app==='garage') renderPhone();
+  });
   function enter() {
     if(visible) return;
     visible = true;
@@ -206,7 +222,7 @@
         method='software';
         engine?.dispose();scene.replaceChildren();
         engine=window.CityMap.createFallback(scene,{onFrame:frame,onInteract:interact,initialState:last});
-        paintCar();setPaused();syncMarkers();renderTask();refreshHUD();
+        applyEquipment();setPaused();syncMarkers();renderTask();refreshHUD();
       }};
       try{engine=window.CityEngine.create(scene,hooks);}
       catch(error){
@@ -218,7 +234,7 @@
       if(!prefs.visited && !jobs.current() && !jobs.getState().completed.length) jobs.start('city-english');
       prefs.visited = true;persist();
     }
-    paintCar();setPaused();syncMarkers();renderTask();refreshHUD();
+    applyEquipment();setPaused();syncMarkers();renderTask();refreshHUD();
 
   }
   function leave() {
@@ -249,10 +265,17 @@
           return '<button class="city-job" style="--tint:'+j.color+'" data-job="'+j.id+'" '+(unlocked?'':'disabled')+'><small>'+subjectNames[j.subject]+' · '+status+'</small><strong>'+esc(j.title)+'</strong><p>'+esc(j.brief)+'</p></button>';
         }).join('');
     } else if(app==='garage'){
-      const paints=[{id:'',livery:'珊瑚红',color:'#ee735e'},...contracts];
-      body.innerHTML='<h3>海风敞篷 · 车漆</h3><p>完成一份委托，就能把它的颜色开上街。</p>'+paints.map(j=>{
-        const can=!j.id||state.completed.includes(j.id);
-        return '<button class="garage-paint" style="--tint:'+j.color+'" data-paint="'+j.id+'" '+(can?'':'disabled')+'><i class="garage-chip"></i>'+esc(j.livery)+'<small>'+(prefs.paint===j.id?'已装备':can?'换上车漆':'完成「'+esc(j.title)+'」解锁')+'</small></button>';
+      const inventory=window.Game?.getState();
+      const paints=[{id:'',livery:'珊瑚红',color:'#ee735e'},shopPaint,...contracts];
+      const currentId=selectedPaint(inventory,state.completed)?.id || '';
+      body.innerHTML='<h3>海风敞篷 · 车漆</h3><p>完成学科委托解锁主题色，也可以在道具商店购买霓虹玫红。</p>'+paints.map(j=>{
+        const isShopPaint=j.id===shopPaint.id;
+        const can=isShopPaint?inventory?.owned?.includes('paint'):!j.id||state.completed.includes(j.id);
+        const selected=currentId===j.id;
+        const buyLink=isShopPaint && !can && window.HarborShop?.open;
+        const label=selected?'已装备':can?'换上车漆':isShopPaint?'去道具商店购买':'完成「'+esc(j.title)+'」解锁';
+        const control=buyLink?'data-buy-paint':'data-paint="'+j.id+'" aria-pressed="'+selected+'" '+(can?'':'disabled');
+        return '<button class="garage-paint" style="--tint:'+j.color+'" '+control+'><i class="garage-chip"></i>'+esc(j.livery)+'<small>'+label+'</small></button>';
       }).join('');
     } else if(app==='cards'){
       body.innerHTML='<h3>城市记忆卡　'+state.memories.length+' / 4</h3>'+
@@ -280,9 +303,21 @@
       rally.stop();jobs.start(b.dataset.job);cityHint='';personalPin=null;
       syncMarkers();renderTask();closePhone();return;
     }
+    if(Object.hasOwn(b.dataset,'buyPaint')){
+      closePhone();window.HarborShop.open('shop');return;
+    }
     if(Object.hasOwn(b.dataset,'paint')){
-      prefs.paint=b.dataset.paint;persist();paintCar();renderPhone();
-      $('#phone-body [data-paint="'+prefs.paint+'"]')?.focus();return;
+      const chosen=b.dataset.paint, inventory=window.Game?.getState();
+      if(chosen===shopPaint.id){
+        if(!inventory?.owned?.includes('paint'))return;
+        window.Game.equipItem('paint',true);
+      } else {
+        if(chosen && !jobs.getState().completed.includes(chosen))return;
+        prefs.paint=chosen;persist();
+        if(inventory?.equipped?.paint)window.Game.equipItem('paint',false);
+      }
+      applyEquipment();renderPhone();
+      $('#phone-body [data-paint="'+chosen+'"]')?.focus();return;
     }
     if(b.dataset.place){
       const place=places.find(p=>p.id===b.dataset.place);
@@ -296,7 +331,12 @@
   $('#port-leave').onclick=leave;
   $('#port-action').onclick=interact;
   $('#port-hint').onclick=()=>{const h=jobs.hint();cityHint=h.message;syncMarkers();renderTask();};
-  $('#port-reward-next').onclick=()=>openPhone('jobs',city);
+  $('#port-reward-next').onclick=()=>{
+    reward.hidden = true;
+    city.focus({preventScroll:true});
+    if (rewardSubject) window.HarborShop.open('quiz',rewardSubject);
+    else openPhone('jobs',city);
+  };
   $('#port-reward-dismiss').onclick=()=>{reward.hidden=true;city.focus();};
   $('#port-controls').onclick=e=>{const on=city.classList.toggle('show-pad');e.currentTarget.setAttribute('aria-pressed',String(on));};
   radio.onchange=()=>{audioReady=true;prefs.station=radio.value;persist();window.CityAudio?.setStation(radio.value);window.CityAudio?.unlock?.();city.focus({preventScroll:true});};
@@ -320,9 +360,10 @@
   });
   window.addEventListener('blur',releaseTouch);
   window.addEventListener('keydown',e=>{
-    if(!visible||e.ctrlKey||e.altKey||e.metaKey||e.repeat||e.target.matches?.('input,select,textarea'))return;
+    if(!visible||$('#harbor-shop').open||e.ctrlKey||e.altKey||e.metaKey||e.repeat||e.target.matches?.('input,select,textarea'))return;
     if(e.code==='KeyM'){e.preventDefault();if(phone.open)closePhone();else openPhone('map');}
   });
+  window.addEventListener('harbor-shop-visibility',setPaused);
   document.addEventListener('visibilitychange',setPaused);
   window.addEventListener('pagehide',()=>{rally.freeze();engine?.pause(true);window.CityAudio?.setPaused(true);});
   window.addEventListener('pageshow',setPaused);

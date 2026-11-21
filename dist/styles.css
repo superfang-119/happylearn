@@ -100,3 +100,8 @@ dialog::backdrop{background:#080d16c9;backdrop-filter:blur(4px)}
 .gm-voice button:focus-visible{outline:2px solid #ffda79;outline-offset:3px}
 
 .memory-footer{display:flex;align-items:center;justify-content:space-between;gap:8px}.memory-footer p{flex:1}.memory-footer button{flex:none;font-size:14px;font-weight:700;color:#ffe094;text-decoration:underline;text-underline-offset:3px;padding:4px 0}.hero-coordinate{font-family:var(--cn);font-size:12px;letter-spacing:.1em}
+.profile{text-align:left;padding:3px;border-radius:7px}
+.profile:hover .hub-shop-label,.profile:focus-visible .hub-shop-label{color:#ffde8e}
+.hub-shop-label{font-size:12px;color:var(--mint);margin-left:2px}
+.hub-quest-links{display:flex;align-items:center;gap:18px}
+@media(max-width:580px){.hub-quest-links{gap:10px}.hub-quest-links .expedition{font-size:12px}.top-tools{gap:8px}.hub-shop-label{font-size:11px}}

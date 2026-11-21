@@ -58,7 +58,7 @@ test('local-day appointments expand only after due, unassisted recall and restar
   session = visit(storage, 2026, 3, 23);
   practice(session, mission, 'hint');
   assert.equal(appointment().due, '2026-03-24');
-  assert.equal(session.game.getState().xp, 20);
+  assert.equal(session.game.getState().xp, 20 + 4 * 8);
 });
 
 test('legacy and malformed schedules offer earned cards today and preserve actual reviewed progress', () => {

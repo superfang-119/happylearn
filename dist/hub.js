@@ -116,7 +116,10 @@
       card.setAttribute('aria-label', subject.region + '，' + subject.name + '，已完成 ' + done + ' 个任务，共 ' + all.length + ' 个');
     });
     const total = state.completed.length;
-    const level = 1 + Math.floor(state.xp / 80);
+    const level = state.level;
+    $('#hub-coins').textContent = state.coins;
+    $('#port-coins').textContent = state.coins;
+    $('#port-level').textContent = 'Lv.' + level;
     $('#level').textContent = 'LV. ' + String(level).padStart(2, '0');
     $('#rank').textContent = level < 3 ? '见习探险家' : level < 6 ? '群岛探险家' : '群岛领航员';
     $('#fragment-count').textContent = total + ' / ' + missions.length;
@@ -149,6 +152,8 @@
     });
   }
   document.addEventListener('click', event => {
+    const counter = event.target.closest('[data-harbor-open]');
+    if (counter) return window.HarborShop.open(counter.dataset.harborOpen);
     const target = event.target.closest('[data-do],[data-region]');
     if (!target) return;
     const action = target.dataset.do;

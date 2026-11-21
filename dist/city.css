@@ -73,3 +73,10 @@ body.in-port>.topbar,body.in-port>.hub,body.in-port>.skip{display:none}
 
 .port-card summary{cursor:pointer;font-size:14px}.port-card[open] summary{border-bottom:1px solid #78938d66;padding-bottom:8px}.port-card[open] p{margin:9px 0}.port-card summary:focus-visible{outline:2px solid var(--sun)}
 @media(max-height:300px){.port-task{top:39px;width:190px;padding:5px 8px}.port-task h2{font-size:14px;margin:2px 0}.port-task p{font-size:12px;line-height:1.2}.port-task-foot{margin-top:1px}.port-radar{top:47px;width:65px}.port-direction{grid-template-columns:repeat(3,34px);grid-template-rows:repeat(2,29px)}.port-sign h1{font-size:21px}}
+.port-economy-actions{display:flex;align-items:center;gap:7px;margin-top:9px;padding-top:9px;border-top:1px solid #dae4e52c}
+.port-task .port-economy-actions button{margin:0;padding:6px 9px;border:1px solid #f9c77b70;border-radius:5px;background:#ffcf7c;color:#192b30;text-decoration:none;white-space:nowrap;line-height:1.2}
+.port-task .port-economy-actions button:nth-child(2){background:#253840;color:#ffdda5}
+.port-wallet{display:grid;justify-items:end;margin-left:auto;font:700 11px/1.35 var(--mono),var(--cn);color:#dce6e0;white-space:nowrap}
+.port-wallet b{color:#9fe6d7}.port-wallet strong{color:#ffda88}
+@media(max-width:720px),(max-height:540px){.port-economy-actions{margin-top:5px;padding-top:5px}.port-task .port-economy-actions button{padding:5px 8px}}
+@media(max-height:300px){.port-economy-actions{gap:4px;margin-top:2px;padding-top:3px}.port-task .port-economy-actions button{padding:3px 5px}.port-wallet{font-size:10px}}

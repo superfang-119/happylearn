@@ -299,6 +299,7 @@
     const keyboard=new Set(),touch=new Set();
     let running=true,destroyed=false,contextLost=false,request=0,last=0,elapsed=0,stride=0,lookHeading=0;
     let drag=null,orbitYaw=0,orbitPitch=0,releaseTime=0,recentering=false;
+    let footSpeedMultiplier=1;
     const focusPoint=new T.Vector3(0,1,-2),cameraGoal=new T.Vector3(),focusGoal=new T.Vector3();
     const blocked=(px,pz,r)=>Math.abs(px)>LIMIT-r || Math.abs(pz)>LIMIT-r || obstacles.some(b=>overlaps(px,pz,r,b));
     function objectBlocked(px,pz,angle,isCar) {
@@ -488,7 +489,7 @@
         for(const wheel of car.wheels)wheel.rotation.x-=velocity*dt/.42;
       } else {
         heading=wrap(heading+steer*2.25*dt);
-        const desired=(Number(f)-Number(b))*(held('sprint')?6.2:3.75)*(b?.7:1);
+        const desired=(Number(f)-Number(b))*(held('sprint')?6.2:3.75)*footSpeedMultiplier*(b?.7:1);
         velocity=follow(velocity,desired,12,dt);
         if(Math.abs(velocity)<.025)velocity=0;
         stride+=dt*Math.abs(velocity)*2.19;hero.animate(stride,Math.min(1,Math.abs(velocity)/3.4));
@@ -534,7 +535,10 @@
     window.addEventListener('resize',resize);window.addEventListener('keydown',keyDown);
     window.addEventListener('keyup',keyUp);window.addEventListener('blur',resetInput);
     sync();aim(0,true);queueFrame();
-    return {setInput,interactVehicle,setTarget,setTargets,setDrivingColor(hex){try{car.paint.color.set(hex);}catch{}},pause,dispose};
+    return {setInput,interactVehicle,setTarget,setTargets,pause,dispose,
+      setRunningShoes(enabled){footSpeedMultiplier=enabled?1.35:1;},
+      setDrivingColor(hex){try{car.paint.color.set(hex);}catch{}}
+    };
   }
   window.CityEngine = Object.freeze({create});
 })();

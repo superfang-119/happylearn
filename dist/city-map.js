@@ -311,6 +311,7 @@
     const s={x:1.5,z:2,heading:0,driving:false,speed:0,carX:4,carZ:0};
     const keys=new Set(), keyboard=new Set();
     let carHeading=.14,carColor='#ee9968', paused=false,disposed=false;
+    let footSpeedMultiplier=1;
     let targets=[],lastTime=0,frame=0,walk=0,velocity=0,stick=null,cameraX=s.x,cameraZ=s.z;
     let viewScale=8,viewW=1,viewH=1,lastDraw=-Infinity;
     let look=null,orbitYaw=0,orbitPitch=0,recenter=false,releaseTime=0;
@@ -407,7 +408,7 @@
       }else{
         if(!stick)s.heading+=side*2.25*dt;
         else if(heading!==null)s.heading=heading;
-        const speed=held('sprint')?6.2:3.75;
+        const speed=(held('sprint')?6.2:3.75)*footSpeedMultiplier;
         const desired=stick ? (distance>1?speed:0) : forward*speed*(forward < 0 ? .7 : 1);
         velocity+=(desired-velocity)*(1-Math.exp(-12*dt));
         if(Math.abs(velocity)<.025)velocity=0;
@@ -540,6 +541,7 @@
       setInput,interactVehicle,
       setTarget(point){targets=markerList(point);lastDraw=-Infinity;},
       setTargets(items){targets=markerList(items);lastDraw=-Infinity;},
+      setRunningShoes(enabled){footSpeedMultiplier=enabled?1.35:1;},
       setDrivingColor(color){
         if(Number.isInteger(color)&&color>=0&&color<=0xffffff)carColor='#'+color.toString(16).padStart(6,'0');
         else if(typeof color==='string'&&/^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color))carColor=color;

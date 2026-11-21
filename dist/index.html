@@ -10,8 +10,10 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="game.css">
   <link rel="stylesheet" href="city.css">
+  <link rel="stylesheet" href="shop.css">
   <script src="content.js" defer></script>
   <script src="game.js" defer></script>
+  <script src="shop.js" defer></script>
   <script src="hub.js" defer></script>
   <script src="voice.js" defer></script>
   <script src="vendor/three.min.js" defer></script>
@@ -37,7 +39,7 @@
       <div class="top-tools">
         <button class="sound-button" data-do="sound" aria-label="关闭游戏音效" title="关闭游戏音效"><i data-icon="sound"></i></button>
         <span class="tools-sep"></span>
-        <div class="profile"><img src="art/avatar.png" width="36" height="36" alt=""><span><strong id="rank">见习探险家</strong><small id="level">LV. 01</small></span></div>
+        <button class="profile" type="button" data-harbor-open="shop"><img src="art/avatar.png" width="36" height="36" alt=""><span><strong id="rank">见习探险家</strong><small><span id="level">LV. 01</span> · <span id="hub-coins">0</span> 金币</small></span><b class="hub-shop-label">商店 ›</b></button>
       </div>
     </div>
   </header>
@@ -53,7 +55,7 @@
       <div class="hero-coordinate"><span class="glint" aria-hidden="true">✦</span> 七年级上册 · 四科探险</div>
     </section>
     <section id="worlds" aria-labelledby="world-label">
-      <div class="section-line"><h2 id="world-label"><i data-icon="map"></i>探索区域</h2><button class="expedition" data-do="mixed"><i data-icon="flag"></i>跨岛远征<span class="chevron" aria-hidden="true">›</span></button></div>
+      <div class="section-line"><h2 id="world-label"><i data-icon="map"></i>探索区域</h2><div class="hub-quest-links"><button type="button" class="expedition" data-harbor-open="quiz">答题赚币</button><button class="expedition" data-do="mixed"><i data-icon="flag"></i>跨岛远征<span class="chevron" aria-hidden="true">›</span></button></div></div>
       <div class="regions" id="regions"></div>
     </section>
     <div class="dashboard-foot">
@@ -80,6 +82,7 @@
       <h2 id="port-objective"></h2>
       <p id="port-clue"></p>
       <div class="port-task-foot"><span id="port-distance"></span><button id="port-hint" type="button">听个提示</button></div>
+      <div class="port-economy-actions"><button type="button" data-harbor-open="quiz">答题赚币</button><button type="button" data-harbor-open="shop">道具商店</button><span class="port-wallet"><b id="port-level">Lv.1</b><span><strong id="port-coins">0</strong> 金币</span></span></div>
     </div>
     <div class="port-toast" id="port-toast" role="status" aria-live="polite" hidden></div>
     <div class="port-reward" id="port-reward" role="status" hidden><b id="port-reward-label"></b><strong id="port-reward-title"></strong><p id="port-reward-text"></p><button id="port-reward-next" type="button">查看委托手机</button><button id="port-reward-dismiss" type="button" aria-label="收起奖励">×</button></div>
@@ -103,10 +106,11 @@
     </div>
     <dialog id="port-phone" aria-labelledby="port-phone-title">
       <div class="phone-top"><div><small>SUNSET HARBOR</small><h2 id="port-phone-title">港城手机</h2></div><button id="port-phone-close" type="button" aria-label="收起手机">×</button></div>
-      <nav class="phone-tabs" aria-label="手机应用"><button data-app="jobs" type="button">委托</button><button data-app="garage" type="button">车库</button><button data-app="cards" type="button">知识卡</button><button data-app="map" type="button">地图</button></nav>
+      <nav class="phone-tabs" aria-label="手机应用"><button data-app="jobs" type="button">委托</button><button data-app="garage" type="button">车库</button><button data-app="cards" type="button">知识卡</button><button data-app="map" type="button">地图</button><button type="button" data-harbor-open="shop">商店</button></nav>
       <div id="phone-body" class="phone-body"></div>
     </dialog>
   </section>
+  <dialog id="harbor-shop" aria-labelledby="shop-title"></dialog>
   <dialog id="game-dialog" aria-label="群岛探险"></dialog>
   <dialog id="hub-dialog" aria-labelledby="help-title"><div class="guide-modal"><button class="close-help" data-do="close-guide" aria-label="关闭玩法指南">×</button><span class="manual-tag"><i data-icon="guide"></i> 探险手册</span><h2 id="help-title">第一次登岛</h2><ol><li><strong>选一座岛，去找线索</strong><p>点开喜欢的区域，再选一个短任务。跟着场景里的提示观察。</p></li><li><strong>试着行动，随时求助</strong><p>读完线索再做选择。遇到难题可以看提示，答错也能继续尝试。</p></li><li><strong>带走卡片，换个情境再想想</strong><p>完成任务即可收集知识卡。在「知识图鉴」里复习，每座岛各完成一个任务后还能开启跨岛远征。</p></li></ol><button class="gold-button" data-do="guide-start"><i data-icon="play"></i>出发探险</button></div></dialog>
 </body>

@@ -9,7 +9,14 @@
   const art = { english: 'forest', geography: 'harbor', history: 'ruins', chinese: 'academy', mixed: 'hero' };
   const storeKey = 'happylearn.islands.field.v1';
   const listeners = new Set();
-  const blank = () => ({ completed: [], reviewed: [], reviewSchedule: {}, mistakes: {}, checkpoints: {}, last: null });
+  const catalog = Object.freeze([
+    { id:'insight', name:'灵感卡', price:8, kind:'consumable', description:'答题时排除一个错误选项。' },
+    { id:'shoes', name:'疾行跑鞋', price:32, kind:'permanent', description:'装备后，步行和奔跑速度提高 35%。' },
+    { id:'paint', name:'霓虹玫红车漆', price:48, kind:'permanent', description:'给你的敞篷车换上霓虹玫红色。' }
+  ].map(Object.freeze));
+  const products = new Map(catalog.map(item=>[item.id,item]));
+  const blankWallet = () => ({ quizzes:{}, reviews:{}, eligible:{}, errors:{}, used:{}, bought:0, owned:[], equipped:{shoes:false,paint:false} });
+  const blank = () => ({ completed: [], reviewed: [], reviewSchedule: {}, mistakes: {}, checkpoints: {}, last: null, wallet:blankWallet() });
   const clone = value => JSON.parse(JSON.stringify(value));
   const uniqueIds = value => [...new Set(Array.isArray(value) ? value.filter(id => byId.has(id)) : [])];
   const safe = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -60,12 +67,75 @@
     return (year === new Date().getFullYear() ? '' : year + '年') + month + '月' + day + '日复习';
   }
 
+  function isCityQuiz(id) {const m=byId.get(id);return !!m && m.subject!=='mixed';}
+  const has = (object,key) => Object.prototype.hasOwnProperty.call(object,key);
+  const coinsFor = m => m.subject === 'mixed' ? 24 : 12;
+  const countClaims = days => Object.values(days).reduce((total,ids)=>total+ids.length,0);
+  const insightKey = (mode,id) => [mode,localDay(),id].join('/');
+
+  // Progress and dated claims are the ledger. Balances are derived, so old
+  // saves acquire their earned currency and duplicate claims never add funds.
+  function totals() {
+    const w=state.wallet, quizzes=countClaims(w.quizzes), reviews=countClaims(w.reviews);
+    const xp=state.completed.reduce((n,id)=>n+xpFor(byId.get(id)),0)+15*quizzes+8*reviews;
+    const earned=state.completed.reduce((n,id)=>n+coinsFor(byId.get(id)),0)+10*quizzes+5*reviews;
+    const spent=w.bought*products.get('insight').price+w.owned.reduce((n,id)=>n+products.get(id).price,0);
+    return {xp,coins:Math.max(0,earned-spent),level:1+Math.floor(xp/80),levelXP:xp%80,nextLevelXP:80};
+  }
+
+  function decodeWallet(raw,completed) {
+    const w=blankWallet();
+    if(!raw || typeof raw!=='object')return w;
+    for(const [field,allowed] of [['quizzes',isCityQuiz],['reviews',id=>completed.includes(id)]]) {
+      for(const [day,ids] of Object.entries(raw[field]||{})) {
+        if(!validDay(day))continue;
+        const cleaned=uniqueIds(ids).filter(allowed);
+        if(cleaned.length)w[field][day]=cleaned;
+      }
+    }
+    for(const id of completed)if(validDay(raw.eligible?.[id]))w.eligible[id]=raw.eligible[id];
+    for(const [day,items] of Object.entries(raw.errors||{})) {
+      if(!validDay(day) || !items || typeof items!=='object')continue;
+      const checks={};
+      for(const [id,attempts] of Object.entries(items)) {
+        if(!isCityQuiz(id)||!Array.isArray(attempts))continue;
+        const item=byId.get(id).recall;
+        const wrong=[...new Set(attempts.filter(i=>Number.isInteger(i)&&i>=0&&i<item.options.length&&i!==item.answer))];
+        if(wrong.length)checks[id]=wrong;
+      }
+      if(Object.keys(checks).length)w.errors[day]=checks;
+    }
+    const owned=Array.isArray(raw.owned)?raw.owned:[];
+    w.owned=['shoes','paint'].filter(id=>owned.includes(id));
+    for(const id of w.owned)w.equipped[id]=raw.equipped?.[id]!==false;
+    w.bought=Number.isSafeInteger(raw.bought)&&raw.bought>0?raw.bought:0;
+    const earned=completed.reduce((n,id)=>n+coinsFor(byId.get(id)),0)+10*countClaims(w.quizzes)+5*countClaims(w.reviews);
+    // Ignore unaffordable inventory from an interrupted or malformed save.
+    let remaining=earned;
+    w.owned=w.owned.filter(id=>{
+      const price=products.get(id).price;
+      if(price>remaining){w.equipped[id]=false;return false;}
+      remaining-=price;return true;
+    });
+    w.bought=Math.min(w.bought,Math.floor(remaining/products.get('insight').price));
+    let used=0;
+    for(const [key,i] of Object.entries(raw.used||{})) {
+      const [mode,day,id,...extra]=key.split('/');
+      if(extra.length||!validDay(day)||!byId.has(id)||!['mission','recall','quiz'].includes(mode))continue;
+      if((mode==='quiz'&&!isCityQuiz(id))||(mode==='recall'&&!completed.includes(id)))continue;
+      const m=byId.get(id),item=mode==='mission'?m:m.recall;
+      if(used<w.bought && Number.isInteger(i)&&i>=0&&i<item.options.length&&i!==item.answer){w.used[key]=i;used++;}
+    }
+    return w;
+  }
+
   function decode(raw) {
     try {
       const saved = JSON.parse(raw);
       if (!saved || typeof saved !== 'object') return blank();
       const out = blank();
       out.completed = uniqueIds(saved.completed);
+      out.wallet=decodeWallet(saved.wallet,out.completed);
       out.reviewed = uniqueIds(saved.reviewed).filter(id => out.completed.includes(id));
       for (const id of out.completed) {
         const entry = saved.reviewSchedule?.[id];
@@ -92,14 +162,31 @@
     } catch { return blank(); }
   }
 
+  let lastRaw=null;
   function load() {
-    try { return decode(localStorage.getItem(storeKey)); }
+    try { lastRaw=localStorage.getItem(storeKey);return decode(lastRaw); }
     catch { return blank(); }
   }
 
+  function refresh() {
+    if(!storageAvailable)return;
+    try {
+      const raw=localStorage.getItem(storeKey);
+      if(raw!==lastRaw){state=decode(raw);lastRaw=raw;}
+    } catch { storageAvailable=false; }
+  }
+  const insightCount = () => Math.max(0,state.wallet.bought-Object.keys(state.wallet.used).length);
+
   function getState() {
+    refresh();
     const active = state.checkpoints[state.last] || Object.values(state.checkpoints).at(-1) || null;
-    return clone({ xp: state.completed.reduce((n, id) => n + xpFor(byId.get(id)), 0), shards: state.completed.length, completed: state.completed, memories: state.completed, reviewed: state.reviewed, dueReviews: dueReviews(), reviewSchedule: state.reviewSchedule, active, mistakes: state.mistakes });
+    const today=localDay(),w=state.wallet,quizEliminatedToday={};
+    for(const m of missions) {
+      const key='quiz/'+today+'/'+m.id;
+      if(has(w.used,key))quizEliminatedToday[m.id]=w.used[key];
+    }
+    return clone({ ...totals(),inventory:{insight:insightCount()},owned:w.owned,equipped:w.equipped,
+      quizClaimedToday:w.quizzes[today]||[],quizEliminatedToday,quizWrongToday:w.errors[today]||{},shards: state.completed.length, completed: state.completed, memories: state.completed, reviewed: state.reviewed, dueReviews: dueReviews(), reviewSchedule: state.reviewSchedule, active, mistakes: state.mistakes });
   }
 
   function notify() {
@@ -109,11 +196,73 @@
 
   let storageAvailable = true;
   function save() {
-    try { localStorage.setItem(storeKey, JSON.stringify(state)); }
+    try { const raw=JSON.stringify(state);localStorage.setItem(storeKey,raw);lastRaw=raw; }
     catch { storageAvailable = false; }
     notify();
   }
 
+  function failure(reason,message,extra={}) {
+    return {ok:false,reason,message,...extra};
+  }
+  function buyItem(id) {
+    refresh();
+    const item=products.get(id),w=state.wallet;
+    const result={id,coins:totals().coins};
+    if(!item)return failure('invalid_item','找不到这件道具。',result);
+    if(item.kind==='permanent' && w.owned.includes(id))return {...result,ok:true,reason:'already_owned',message:'你已经拥有这件道具。'};
+    if(result.coins<item.price)return failure('insufficient_coins','金币不足，答对城市题目或完成岛屿任务就能赚金币。',result);
+    if(item.kind==='consumable')w.bought++;
+    else {w.owned.push(id);w.equipped[id]=true;}
+    save();
+    return {ok:true,id,coins:totals().coins,reason:'purchased',message:item.name+'已购入。'};
+  }
+  function equipItem(id,enabled) {
+    refresh();
+    const result={id,coins:totals().coins};
+    if(typeof enabled!=='boolean'||!state.wallet.owned.includes(id))return failure('not_owned','请先拥有这件道具。',result);
+    if(state.wallet.equipped[id]!==enabled) {state.wallet.equipped[id]=enabled;save();}
+    return {ok:true,...result,reason:enabled?'equipped':'unequipped',message:enabled?'已装备。':'已卸下。'};
+  }
+  function claim(field,id,day=localDay()) {
+    const days=state.wallet[field],ids=days[day]||(days[day]=[]);
+    if(ids.includes(id))return false;
+    ids.push(id);return true;
+  }
+  function answerCityQuiz(id,index) {
+    refresh();
+    const base={correct:false,rewarded:false,xpGain:0,coinGain:0,levelUp:false,level:totals().level};
+    if(!isCityQuiz(id))return failure('invalid_quiz','找不到这道题。',base);
+    const item=byId.get(id).recall,w=state.wallet,day=localDay();
+    if(!Number.isInteger(index)||index<0||index>=item.options.length)return failure('invalid_option','请选择一个有效选项。',base);
+    if(w.used[insightKey('quiz',id)]===index)return failure('eliminated','灵感卡已经排除了这个选项。',base);
+    if(index!==item.answer) {
+      const errors=w.errors[day]||(w.errors[day]={}),wrong=errors[id]||(errors[id]=[]);
+      if(!wrong.includes(index)){wrong.push(index);save();}
+      return {ok:true,...base,reason:'try_again',message:item.hint};
+    }
+    const rewarded=claim('quizzes',id,day);
+    if(rewarded)save();
+    const level=totals().level;
+    return {ok:true,correct:true,rewarded,xpGain:rewarded?15:0,coinGain:rewarded?10:0,
+      levelUp:level>base.level,level,reason:rewarded?'rewarded':'already_claimed',message:item.explain};
+  }
+  function useInsightFor(mode,id,wrong=[]) {
+    refresh();
+    const m=byId.get(id),noCard={eliminated:null};
+    if(!m||(mode==='quiz'&&!isCityQuiz(id)))return failure('invalid_quiz','找不到这道题。',noCard);
+    const key=insightKey(mode,id),w=state.wallet;
+    if(has(w.used,key))return {ok:true,reason:'already_used',eliminated:w.used[key],message:'这个选项已经排除。'};
+    if(mode==='quiz'&&w.quizzes[localDay()]?.includes(id))return failure('completed','这道题今天已经答对了。',noCard);
+    const item=mode==='mission'?m:m.recall;
+    const excluded=new Set(Array.isArray(wrong)?wrong:[]);
+    if(mode==='quiz')for(const i of w.errors[localDay()]?.[id]||[])excluded.add(i);
+    const eliminated=item.options.findIndex((_,i)=>i!==item.answer&&!excluded.has(i));
+    if(eliminated<0)return failure('no_option','剩下的选项里已没有可以排除的错误答案。',noCard);
+    if(insightCount()<1)return failure('no_insight','背包里没有灵感卡。',noCard);
+    w.used[key]=eliminated;save();
+    return {ok:true,eliminated,reason:'used',message:'灵感卡帮你排除了一个错误选项。'};
+  }
+  function useQuizInsight(id,wrong) {return useInsightFor('quiz',id,wrong);}
   function sites(mission) {
     if (Array.isArray(mission.sites) && mission.sites.length > 0) return mission.sites;
     return [{ label: '调查现场', text: mission.scene }, { label: '寻找线索', text: mission.hint }];
@@ -228,6 +377,7 @@
   }
 
   function start(world, id) {
+    refresh();
     if (!worlds.has(world)) return;
     if (world === 'mixed' && !mixedOpen()) return locked();
     const existing = state.checkpoints[world];
@@ -298,8 +448,13 @@
     const world = worlds.get(m.subject);
     const heading = head(recall ? world.region + ' · 记忆回响' : world.region + ' · 任务 ' + String(rank(m)).padStart(2,'0'), recall ? '再用一次这条知识' : m.title);
     const board = !recall && playboards[m.id];
+    const usedKey=insightKey(recall?'recall':'mission',m.id);
+    const excluded=state.wallet.used[usedKey];
+    const insightButton=!has(state.wallet.used,usedKey)&&insightCount()>0
+      ? action('使用灵感卡（'+insightCount()+'）','insight','','gm-quiet') : '';
+
     const choices = item.options.map((opt, i) => {
-      const missed = view.wrong.includes(i);
+      const missed = view.wrong.includes(i)||excluded===i;
       let emblem = '<span>' + ['A','B','C','D'][i] + '</span>';
       if (board?.kind === 'tracks') emblem = '<span aria-hidden="true">' + icon('paw',['mint','blue','red'][i]) + '</span>';
       if (board?.kind === 'pasture') emblem = '<span aria-hidden="true">' + icon(board.emblems[i],'gold') + '</span>';
@@ -312,19 +467,22 @@
     const scene = recall ? '' : '<details class="gm-details"'+(view.cluesOpen ? ' open' : '')+'><summary>重看现场线索</summary>' + sites(m).map(point => '<p><b>' + safe(point.label) + '</b>　' + safe(point.text) + '</p>').join('') + '</details>';
     const notice = view.feedback || (hint ? item.hint : '');
     const feedback = '<div role="status" class="gm-feedback ' + (notice ? 'is-visible' : '') + '">' + (notice ? '<strong>向导</strong>　' + safe(notice) : '') + '</div>';
-    mount(heading + (recall ? '' : steps(1,['寻找线索','采取行动','获得碎片'])) + '<div class="' + artClass(m.subject) + ' gm-question-banner">' + icon(recall ? 'book':'compass',dye[m.subject]) + '</div><div class="gm-body"><h3 class="gm-question">' + safe(item.prompt) + '</h3>' + choiceGroup + feedback + '<div class="gm-tools">' + action('给我一点提示','hint','','gm-quiet') + (recall ? action('返回图鉴','journal','','gm-quiet') : '') + '</div>' + scene + '</div>', update && view.wrong.length ? '.gm-answer:not(:disabled)' : null, update);
+    mount(heading + (recall ? '' : steps(1,['寻找线索','采取行动','获得碎片'])) + '<div class="' + artClass(m.subject) + ' gm-question-banner">' + icon(recall ? 'book':'compass',dye[m.subject]) + '</div><div class="gm-body"><h3 class="gm-question">' + safe(item.prompt) + '</h3>' + choiceGroup + feedback + '<div class="gm-tools">' + action('给我一点提示','hint','','gm-quiet') + insightButton + (recall ? action('返回图鉴','journal','','gm-quiet') : '') + '</div>' + scene + '</div>', update && view.wrong.length ? '.gm-answer:not(:disabled)' : null, update);
   }
 
   function answer(i) {
     if (!view || !['mission','recall'].includes(view.type)) return;
     const m = byId.get(view.id), recall = view.type === 'recall', item = recall ? m.recall : m;
+    const wallet=state.wallet,day=localDay(),due=recall&&(state.reviewSchedule[m.id]?.due<=day||wallet.eligible[m.id]===day);
+    if(i===wallet.used[insightKey(recall?'recall':'mission',m.id)])return;
     if (recall && !state.completed.includes(m.id)) return journal();
-    if ((!recall && state.checkpoints[m.subject]?.step !== 'choice') || !Number.isInteger(i) || !(i in item.options) || view.wrong.includes(i)) return;
+    if ((!recall && (state.checkpoints[m.subject]?.id!==m.id || state.checkpoints[m.subject]?.step !== 'choice')) || !Number.isInteger(i) || !(i in item.options) || view.wrong.includes(i)) return;
     if (i !== item.answer) {
       view.wrong.push(i);
       view.feedback = '换个角度看看。' + item.hint;
       state.mistakes[m.id] = (state.mistakes[m.id] || 0) + 1;
       if (recall) {
+        if(due)wallet.eligible[m.id]=day;
         state.reviewed = state.reviewed.filter(id => id !== m.id);
         scheduleReview(m.id, 0);
         view.feedback = '没关系，明天还会遇见这张卡。' + item.hint;
@@ -332,10 +490,12 @@
       save();
       return choiceScreen(m, recall, true);
     }
-    const fresh = !state.completed.includes(m.id);
+    const before=totals(),fresh=!state.completed.includes(m.id);
+    if(recall&&due)claim('reviews',m.id,day);
+    if(recall)delete wallet.eligible[m.id];
     if (recall) {
       const appointment = state.reviewSchedule[m.id];
-      if (view.wrong.length || view.hint) scheduleReview(m.id, 0);
+      if (view.wrong.length || view.hint || has(wallet.used,insightKey('recall',m.id))) scheduleReview(m.id, 0);
       else if (appointment.due <= localDay()) {
         scheduleReview(m.id, Math.min(appointment.stage + 1, reviewIntervals.length - 1));
       }
@@ -349,7 +509,8 @@
       delete state.checkpoints[m.subject];
       if (state.last === m.subject) state.last = Object.keys(state.checkpoints).at(-1) || null;
     }
-    view = { type: 'reward', id: m.id, recall, fresh };
+    const after=totals();
+    view = { type:'reward',id:m.id,recall,fresh,xpGain:after.xp-before.xp,coinGain:after.coins-before.coins,levelUp:after.level>before.level,level:after.level };
     save();
     reward();
   }
@@ -360,12 +521,15 @@
     const due = dueReviews();
     const continueReview = due.length ? action('继续今日复习（' + due.length + '）','recall',due[0]) : action('回到知识图鉴','journal');
     const mainAction = recall ? continueReview : next ? action('出发去下一站','begin',next.id) : action('回到世界地图','close');
-    const earned = recall ? '成功唤醒这段记忆' : view.fresh ? '知识碎片 +1　·　经验 +' + xpFor(m) : '再次完成了这个任务';
+    const gains=view.xpGain?'　·　经验 +'+view.xpGain+'　·　金币 +'+view.coinGain:'';
+    const earned=(recall?'成功唤醒这段记忆':view.fresh?'知识碎片 +1':'再次完成了这个任务')+gains+
+      (view.levelUp?'　·　升至 LV. '+view.level:'');
+    const shopLink=window.HarborShop?.open?action('去道具商店','shop','','gm-quiet'):'';
     const nextAction = recall ? action('查看这张记忆卡','card',m.id,'gm-quiet') : action('查看知识图鉴','journal','','gm-quiet');
     const previous = !recall && (due.find(id => id !== m.id) || state.completed.find(id => id !== m.id && !state.reviewed.includes(id)));
     const memoryInvite = previous ? '<div class="gm-echo"><div><b>来自上一站的回响</b><p>' + safe(byId.get(previous).title) + '</p></div>' + action('唤醒旧碎片','recall',previous,'gm-quiet') + '</div>' : '';
     const storageNote = storageAvailable ? '' : '<p class="gm-save-note">此浏览器暂时无法保存进度，本次游玩的奖励仍可在图鉴中查看。</p>';
-    mount(head(worlds.get(m.subject).region, recall ? '记忆唤醒！' : '任务完成！') + '<div class="' + artClass(m.subject) + ' gm-treasure"><span>' + icon(recall ? 'book':'gem',dye[m.subject]) + '</span></div><div class="gm-body"><div class="gm-reward-line">✦ ' + earned + '</div><h3 class="gm-card-title">' + safe(m.title) + '</h3><p>' + safe((recall ? m.recall : m).explain) + '</p><div class="gm-fact"><b>记忆碎片 · ' + reviewDate(m.id) + '</b>' + safe(m.memory) + '</div>' + memoryInvite + storageNote + '<div class="gm-foot">' + nextAction + mainAction + '</div></div>');
+    mount(head(worlds.get(m.subject).region, recall ? '记忆唤醒！' : '任务完成！') + '<div class="' + artClass(m.subject) + ' gm-treasure"><span>' + icon(recall ? 'book':'gem',dye[m.subject]) + '</span></div><div class="gm-body"><div class="gm-reward-line">✦ ' + earned + '</div><h3 class="gm-card-title">' + safe(m.title) + '</h3><p>' + safe((recall ? m.recall : m).explain) + '</p><div class="gm-fact"><b>记忆碎片 · ' + reviewDate(m.id) + '</b>' + safe(m.memory) + '</div>' + memoryInvite + storageNote + '<div class="gm-foot">' + shopLink + nextAction + mainAction + '</div></div>');
   }
 
   function journal(filter = 'all') {
@@ -427,6 +591,7 @@
   }
 
   function inspect(index, at) {
+    refresh();
     const field = activeField();
     if (!field || !Number.isInteger(index)) return;
     const points = sites(field.mission);
@@ -497,6 +662,7 @@
 
   dialog.addEventListener('close',finishClose);
   dialog.addEventListener('click',event => {
+    refresh();
     if (event.target === dialog) {
       const rect = dialog.getBoundingClientRect();
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) close();
@@ -518,14 +684,28 @@
       case 'inspect': inspect(Number(value)); break;
       case 'to-choice': {
         const m = byId.get(view?.id), cp = m && state.checkpoints[m.subject];
-        if (!cp || cp.found.length !== sites(m).length) break;
+        if (!cp || cp.id!==m.id || cp.found.length !== sites(m).length) break;
         cp.step='choice'; save(); renderMission(); break;
+      }
+      case 'shop': {
+        if(window.HarborShop?.open) {close();window.HarborShop.open('shop');}
+        break;
+      }
+      case 'insight': {
+        if(!view || !['mission','recall'].includes(view.type))break;
+        const m=byId.get(view.id),recalling=view.type==='recall';
+        if(!recalling && (state.checkpoints[m.subject]?.id!==m.id||state.checkpoints[m.subject]?.step!=='choice'))break;
+        const result=useInsightFor(recalling?'recall':'mission',m.id,view.wrong);
+        view.feedback=result.message;
+        choiceScreen(m,recalling,true);
+        break;
       }
       case 'hint': {
         const m = byId.get(view?.id);
         if (!m) break;
         if (view.type === 'recall') view.hint = true;
-        else if (state.checkpoints[m.subject]) state.checkpoints[m.subject].hint = true;
+        else if (state.checkpoints[m.subject]?.id===m.id) state.checkpoints[m.subject].hint = true;
+        else break;
         view.feedback = '';
         save(); choiceScreen(m,view.type === 'recall',true); break;
       }
@@ -534,7 +714,7 @@
 
   dialog.addEventListener('toggle', e => { if(e.target.matches?.('.gm-details') && view) view.cluesOpen = e.target.open; },true);
   window.addEventListener('storage',e => {
-    if (e.key !== storeKey && e.key !== null) return;
+    if (!storageAvailable || (e.key !== storeKey && e.key !== null)) return;
     state=load(); notify();
     if (dialog.open && view) {
       if (view.type === 'mission') renderMission();
@@ -545,7 +725,7 @@
     }
   });
   window.Game = Object.freeze({
-    getState,start,openRegion:region,openJournal:journal,openAchievements:achievements,
+    getState,catalog,buyItem,equipItem,answerCityQuiz,useQuizInsight,start,openRegion:region,openJournal:journal,openAchievements:achievements,
     startMixed: () => mixedOpen() ? start('mixed') : locked(),
     subscribe(fn) { if(typeof fn !== 'function') return () => {}; listeners.add(fn); return () => listeners.delete(fn); }
   });
