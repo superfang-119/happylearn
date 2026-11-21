@@ -29,6 +29,7 @@
   let markers = [], personalPin = null, near = null, app = 'jobs', visible = false, paused = true;
   let toastTimer = 0, uiTime = -1000, method = '3d', panelOpener = null;
   let heldPointers = new Map(), lastAutoMark = null;
+  let shownDrivingControls = false;
   let cityHint = '';
   let audioReady = false;
   const radio = $('#port-radio');
@@ -110,6 +111,12 @@
     action.disabled = !near && !player.driving && !player.nearCar;
     setText($('#port-speed'),String(Math.round(player.speed)));
     setText($('#port-transport'),player.driving ? '海风敞篷' : '步行');
+    if(shownDrivingControls !== player.driving){
+      shownDrivingControls=player.driving;
+      $('#port-controls').innerHTML=player.driving
+        ? '<kbd>W / S</kbd> 油门刹车 <span>·</span> <kbd>A / D</kbd> 转向'
+        : '<kbd>WASD</kbd> 移动 <span>·</span> <kbd>Shift</kbd> 奔跑';
+    }
     setText($('#port-district'),district());
     if(race.active && race.index) setText(phase,(race.elapsed/1000).toFixed(1) + ' s · ' + race.index + '/' + (race.total-1));
     window.CityMap.drawRadar(radar,player,markers);

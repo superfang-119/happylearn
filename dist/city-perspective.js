@@ -10,7 +10,6 @@
     ['#d8a9b7','#f8d3cd','#ae819e'],['#cbd1ab','#f0e2bd','#92a68b']
   ];
   const shopNames=['CORAL CLUB','SUNSET','RADIO 88','PALM HOTEL','海风书局','OCEANIC','CAFÉ SOL','TIDE MAPS','滨海剧场','MIRAGE','SEA SALT','海湾唱片','MUSEUM'];
-  const shortNames=['CORAL','SUNSET','RADIO','PALM','BOOKS','OCEAN','CAFE','TIDE','CINEMA','MIRAGE','SALTS','VINYL','ARTS'];
   const glass=['#517d8a','#668e9a','#658994','#577d8d','#7da2a6'];
   const hash=v=>{const f=Math.sin(v*127.1+311.7)*43758.5453;return f-Math.floor(f);};
   const shadow='#596b77';
@@ -123,17 +122,23 @@
       if(Math.abs(px)<.6||Math.min(p0[0],p1[0])>w||Math.max(p0[0],p1[0])<0)return;
       const aY=horizon-(a[1]+ht)*f/a[2],bY=horizon-(b[1]+ht)*f/b[2];
       const p=[[p0[0],aY],[p1[0],bY],p1,p0];ctx.save();ctx.beginPath();ctx.moveTo(...p[0]);for(let j=1;j<4;j++)ctx.lineTo(...p[j]);ctx.closePath();ctx.clip();
-      // Projective horizontal sampling uses more slices only on close, strongly receding faces.
-      const steps=limit(Math.ceil(Math.abs(a[2]-b[2])/Math.min(a[2],b[2])*9),1,30);
+      // In screen space both the baseline and the vertical scale of a wall are
+      // linear. Sample only the visible span, limiting the change per strip to
+      // about one display pixel so that lettering stays straight at oblique angles.
+      const tA=(-1-p0[0])/px,tB=(w+1-p0[0])/px;
+      const start=Math.max(0,Math.min(tA,tB)),end=Math.min(1,Math.max(tA,tB));
+      const variation=Math.abs(ht*f*(1/a[2]-1/b[2]))*(end-start);
+      const steps=limit(Math.ceil(variation*.90),1,Math.max(1,Math.min(460,Math.ceil(Math.abs(px)*(end-start)))));
       const dw=image.width,dh=image.height;
       for(let j=0;j<steps;j++){
-        const s0=j/steps,s1=(j+1)/steps;
+        const s0=start+(end-start)*j/steps,s1=start+(end-start)*(j+1)/steps;
         const d0=1/((1-s0)/a[2]+s0/b[2]),d1=1/((1-s1)/a[2]+s1/b[2]);
         const t0=s0*d0/b[2],t1=s1*d1/b[2];
         const tx=(u0+(u1-u0)*t0)*dw,sw=Math.max(.002,(u1-u0)*(t1-t0)*dw);
-        const x=p0[0]+px*s0,dx=px/steps,y0=horizon-(a[1]+ht)*f/d0,y1=horizon-(b[1]+ht)*f/d1;
-        if(Math.max(x,x+dx)<0||Math.min(x,x+dx)>w)continue;
-        ctx.save();ctx.transform((dx+Math.sign(dx)*.36)/sw,(y1-y0)/sw,0,ht*f/Math.min(d0,d1)/dh,x,y0);
+        const x=p0[0]+px*s0,dx=px*(s1-s0);
+        const m0=horizon-(a[1]+ht/2)*f/d0,m1=horizon-(a[1]+ht/2)*f/d1;
+        const height=ht*f*(1/d0+1/d1)*.5;
+        ctx.save();ctx.transform((dx+Math.sign(dx)*.31)/sw,(m1-m0)/sw,0,height/dh,x,m0-height*.5);
         ctx.drawImage(image,tx,0,Math.min(sw,dw-tx),dh,0,0,sw,dh);ctx.restore();
       }ctx.restore();
     }
@@ -241,9 +246,9 @@
       grad.addColorStop(0,'#70adc6');grad.addColorStop(.34,'#a8c3d1');grad.addColorStop(.67,'#e5c5cb');
       grad.addColorStop(.88,'#f6c9ad');grad.addColorStop(1,'#ffdcaa');
       ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);
-      const sun=wrapping(.34-yaw);
+      const sun=wrapping(.081-yaw);
       if(Math.abs(sun)<1.49){
-        const sx=w/2+Math.tan(sun)*f,sy=horizon-f*.17,rad=Math.max(8,.045*f);
+        const sx=w/2+Math.tan(sun)*f,sy=horizon-f*.223,rad=Math.max(8,.048*f);
         const halo=ctx.createRadialGradient(sx,sy,rad*.36,sx,sy,rad*5);
         halo.addColorStop(0,'rgba(255,235,171,.76)');halo.addColorStop(.3,'rgba(255,219,159,.49)');halo.addColorStop(1,'rgba(255,226,174,0)');
         ctx.fillStyle=halo;ctx.fillRect(sx-rad*5,sy-rad*5,rad*10,rad*10);
@@ -375,11 +380,15 @@
       cub(0,1.65,.009,.345,.14,.31,['#4c4b55','#68555c','#403e4a','#63555c']);
       if(hero){
         cub(0,1.72,-.012,.39,.13,.35,['#d98d71','#e8a17a','#b8796d','#f1b887']);
+        cub(0,1.73,.173,.17,.035,.025,['#6e6266']);
+        cub(0,1.745,.191,.065,.022,.012,['#edd7ad']);
         cub(0,1.73,-.206,.36,.046,.13,['#efd09c']);
         for(const side of [-1,1])cub(side*.169,1.04,.166,.049,.27,.025,['#4e7482']);
         cub(0,.88,.201,.34,.38,.18,['#476b79','#5d8890','#355462','#789996']);
         cub(0,.90,.305,.28,.18,.048,['#5b8a90','#739e9f','#486f7b','#86aba6']);
         cub(0,1.12,.30,.3,.042,.05,['#e0ba89']);
+        cub(.064,.975,.336,.097,.055,.015,['#e3c391']);
+        cub(-.079,1.13,.335,.022,.055,.015,['#ebd7ae']);
       }
       mesh.finish();
     }
