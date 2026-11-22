@@ -65,6 +65,16 @@
 .vw-word-status{font-size:.78rem;color:#66785d}.vw-word-status.is-due{color:#8a662c;font-weight:700}
 .vw-empty{color:var(--vw-mute);padding:12px 0}.vw-done{gap:10px}.vw-done img{width:44px;height:44px;image-rendering:pixelated}
 .vw-recap li>span{color:#53624c}.vw-sr{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%)}
+.vw-drill h3{margin:0;color:#254d39;font-size:1.2rem}
+.vw-drill p{font:inherit;margin:.4rem 0 .6rem!important}
+.vw-sounds,.vw-sound-option,.vw-chunks{display:flex;gap:.45rem;flex-wrap:wrap}
+.vw-sounds{margin:.65rem 0;gap:.8rem}.vw-sound-option{align-items:center}
+.vw-chunks{margin:.65rem 0!important}.vw-chunks .vw-button,.vw-sound-option .vw-button{min-height:44px;min-width:44px}
+.vw-chunks button:disabled{opacity:.5}.vw-chunks>span{text-align:center;font-weight:bold}
+.vw-chunks small{display:block;font-weight:normal;color:var(--vw-mute)}
+.vw-drill .vw-built{font:700 1.6rem/1.3 Georgia,serif}
+.vw-drill summary{cursor:pointer;padding:.45rem 0;color:var(--vw-green)}
+.vw-drill [data-drill-status]:empty{display:none}
 @media(max-width:420px){
   .vw-head{padding:8px 11px}.vw-head-icon{width:31px;height:31px}.vw-head-icon img{width:26px;height:26px}.vw-head h2{font-size:1.25rem}
   .vw-toolbar{padding:6px 10px;gap:5px}.vw-stages button,.vw-library{font-size:.82rem!important;padding:4px 7px}

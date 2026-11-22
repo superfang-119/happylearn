@@ -50,7 +50,7 @@ def compress(raw):
     return base64.b64encode(audio).decode("ascii")
 
 
-def write_vowels():
+def write_sounds():
     # Request phonemes directly. A word or a spoken letter name is not a reference vowel.
     load = lambda name: ctypes.CDLL(ctypes.util.find_library(name), mode=ctypes.RTLD_GLOBAL)
     flite = load("flite")
@@ -65,20 +65,35 @@ def write_vowels():
     synth.argtypes = [ctypes.c_char_p, ctypes.c_void_p, ctypes.c_char_p]
     synth.restype = ctypes.c_float
     vowels = {}
+    extra = {}
+    # Flite phones for the supported alignments. AH is stressed STRUT, AX is
+    # weak schwa. The silent-e marker has no clip.
+    phones = {
+        "i":"iy", "u":"uw", "ʌ":"ah", "ɑ":"aa", "eɪ":"ey", "aɪ":"ay", "oʊ":"ow", "aʊ":"aw",
+        "ə":"ax", "ɚ":"er", "b":"b", "d":"d", "f":"f", "ɡ":"g", "h":"hh", "k":"k",
+        "l":"l", "m":"m", "n":"n", "ŋ":"ng", "p":"p", "r":"r", "s":"s", "ʃ":"sh",
+        "t":"t", "w":"w", "ð":"dh", "dʒ":"jh",
+    }
+    teaching_vowels = {"æ":"ae", "ɛ":"eh", "ɪ":"ih", "ʊ":"uh"}
     with tempfile.TemporaryDirectory() as folder:
-        for symbol, phone in (("æ", "ae"), ("ɛ", "eh"), ("ɪ", "ih"), ("ʊ", "uh")):
+        for symbol, phone in {**teaching_vowels, **phones}.items():
             path = Path(folder) / (phone + ".wav")
             synth(f"pau {phone} pau".encode(), voice, bytes(path))
             with wave.open(str(path), "rb") as wav:
                 assert wav.getframerate() == RATE and wav.getsampwidth() == 2 and wav.getnchannels() == 1
-                vowels[symbol] = compress(wav.readframes(wav.getnframes()))
+                target = vowels if symbol in teaching_vowels else extra
+                target[symbol] = compress(wav.readframes(wav.getnframes()))
     (DIST / "vowel-audio-data.js").write_text(
         "/* Isolated American-English teaching sounds. Generated with Flite US SLT. */\n"
         + "window.VowelRecordings=Object.freeze(" + json.dumps(vowels, indent=1) + ");\n", encoding="utf-8")
+    (DIST / "phoneme-audio-data.js").write_text(
+        "/* Additional isolated teaching sounds. Generated with Flite US SLT. */\n"
+        + "window.PhonemeRecordings=Object.freeze(" + json.dumps(extra, indent=1, ensure_ascii=False) + ");\n",
+        encoding="utf-8")
 
 
 def main():
-    write_vowels()
+    write_sounds()
     words = json.loads(subprocess.check_output([
         "node", "-e", "global.window={};require('./vocab-data.js');console.log(JSON.stringify(window.EnglishWords.map(x=>x.word)))"
     ], cwd=DIST))

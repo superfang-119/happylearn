@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const recordings = window.WordRecordings || {};
-  const vowels = window.VowelRecordings || {};
+  const sounds = {...window.VowelRecordings, ...window.PhonemeRecordings};
   let current = null;
   const has = word => typeof word === 'string' && Object.hasOwn(recordings,word);
 
@@ -15,7 +15,7 @@
     playing.player.pause();
     playing.resolve(false);
   }
-  const hasSound = ipa => typeof ipa === 'string' && Object.hasOwn(vowels,ipa);
+  const hasSound = ipa => typeof ipa === 'string' && Object.hasOwn(sounds,ipa);
   function playClip(clip,rate) {
     stop();
     if (!clip || typeof window.Audio !== 'function') return Promise.resolve(false);
@@ -40,6 +40,6 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});
   window.addEventListener('pagehide',stop);
   const play = (word,rate=1)=>playClip(has(word)?recordings[word]:null,rate);
-  const playSound = (ipa,rate=1)=>playClip(hasSound(ipa)?vowels[ipa]:null,rate);
+  const playSound = (ipa,rate=1)=>playClip(hasSound(ipa)?sounds[ipa]:null,rate);
   window.WordAudio=Object.freeze({has,play,hasSound,playSound,stop});
 })();

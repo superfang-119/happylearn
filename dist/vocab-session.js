@@ -19,7 +19,7 @@
   const current=()=>state.courses[state.stage];
   const item=id=>lists[state.stage].get(id);
   const distinct=values=>[...new Set(values)];
-  const feedbackKinds=['correct','wrong','revealed','assisted'];
+  const feedbackKinds=['correct','wrong','revealed','assisted','spelled'];
   function restoreRound(raw,available){
     if(!raw||!Array.isArray(raw.words)||!Array.isArray(raw.done)||!Array.isArray(raw.steps))return null;
     const ids=distinct(raw.words.filter(id=>available.has(id)));
@@ -29,9 +29,16 @@
     if(!raw.steps.length&&done.length!==ids.length)return null;
     if(ids.some(id=>!done.includes(id)&&!raw.steps.some(s=>s.id===id&&s.kind==='quiz')))return null;
     const first=raw.steps[0];
-    const feedback=first&&feedbackKinds.includes(raw.feedback?.kind)?raw.feedback:null;
+    const feedback=first&&first.kind!=='study'&&feedbackKinds.includes(raw.feedback?.kind)&&
+      (raw.feedback.kind!=='spelled'||first.kind==='quiz'&&first.mode==='spell')?raw.feedback:null;
     const pending=raw.pending&&first?.kind==='quiz'&&first.id===raw.pending.id&&validDay(raw.pending.day)&&typeof raw.pending.answer==='string'?raw.pending:null;
-    return {words:ids,steps:raw.steps,done,assisted:!!raw.assisted,feedback,pending,
+    const steps=raw.steps.map(step=>{
+      const restored={kind:step.kind,id:step.id};
+      if(step.kind==='quiz'&&step.mode==='spell')restored.mode='spell';
+      if(step.kind==='study'&&step.drill&&window.PhonicsDrill?.valid(step.id,step.drill))restored.drill=step.drill;
+      return restored;
+    });
+    return {words:ids,steps,done,assisted:!!raw.assisted,feedback,pending,
       focus:!!raw.focus,xp:count(raw.xp),coins:count(raw.coins)};
   }
   function load(){
@@ -49,7 +56,7 @@
         for(const id of lists[s].keys()){
           const v=old.records?.[id];if(!v||typeof v!=='object')continue;
           course.records[id]={lastDay:validDay(v.lastDay)?v.lastDay:null,due:validDay(v.due)?v.due:null,
-            level:Math.min(intervals.length,count(v.level)),errors:count(v.errors),weak:!!v.weak};
+            level:Math.min(intervals.length,count(v.level)),errors:count(v.errors),weak:!!v.weak,usedScene:!!v.usedScene};
         }
         course.blockedWord=lists[s].has(old.blockedWord)?old.blockedWord:null;
         course.round=restoreRound(old.round,lists[s]);course.suspended=restoreRound(old.suspended,lists[s]);
@@ -102,20 +109,27 @@
     const fresh=ids.filter(id=>!c.records[id]),known=ids.filter(id=>!!c.records[id]);
     const steps=[],add=(kind,id)=>steps.push({kind,id});
     if(focus&&fresh.includes(focus)){add('study',focus);fresh.shift();}
-    if(known.length)add('quiz',known.shift());
+    const review=id=>steps.push(c.records[id].lastDay?{kind:'quiz',id}:firstRecall(id));
+    if(known.length)review(known.shift());
     for(const id of fresh)add('study',id);
-    for(const id of known)add('quiz',id);
-    if(focus&&!c.records[focus])add('quiz',focus);
-    for(const id of fresh)add('quiz',id);
+    for(const id of known)review(id);
+    if(focus&&!c.records[focus])steps.push(firstRecall(focus));
+    for(const id of fresh)steps.push(firstRecall(id));
     if(steps[0].kind==='quiz'&&steps[0].id===c.blockedWord){
       const other=steps.findIndex(s=>s.id!==c.blockedWord);
       if(other>0)steps.unshift(steps.splice(other,1)[0]);
     }
     return {words:ids,steps,done:[],feedback:null,pending:null,assisted:false,focus:!!focus,xp:0,coins:0};
   }
+  function firstRecall(id){
+    return window.PhonicsDrill?.vowelFor(id)?{kind:'quiz',id,mode:'spell'}:{kind:'quiz',id};
+  }
   function phase(r){
     if(!r)return 'idle';if(!r.steps.length)return 'complete';
-    return r.feedback?'feedback':r.steps[0].kind==='study'?'study':'quiz';
+    if(r.feedback)return 'feedback';
+    const step=r.steps[0];
+    if(step.drill)return step.drill.cursor===-1?'listen':'blend';
+    return step.kind==='study'?'study':'quiz';
   }
   function message(kind,text,extra={}){
     return {kind,message:text,correct:kind==='correct'||kind==='assisted',answer:null,xpGain:0,coinGain:0,...extra};
@@ -124,7 +138,10 @@
     const c=current(),r=c.round,step=r?.steps[0],w=step?item(step.id):null;
     const completed=r?.done.length||0, size=r?.words.length||0;
     const hintText=r?.assisted&&w?'首字母是 '+w.word[0].toUpperCase()+'，再想想“'+w.zh+'”怎么拼。':'';
+    const d=step?.drill,scene=w?.scene&&!c.records[w.word]?.usedScene?w.scene:null;
     return {stage:state.stage,phase:phase(r),word:w?{...w}:null,roundSize:size,
+      drill:d?{cursor:d.cursor,options:[...d.options],tiles:[...d.tiles]}:null,
+      quizMode:step?.mode==='spell'?'spell':'context',prompt:scene?.prompt||w?.prompt,sceneHint:scene?.zh||'',
       position:step?Math.max(1,r.words.indexOf(step.id)+1):size,completed,
       roundWords:r?r.words.map(id=>({...item(id)})):[],roundXp:r?.xp||0,roundCoins:r?.coins||0,
       assisted:!!r?.assisted,hintText,isBridge:step?.kind==='bridge',feedback:notice||r?.feedback||null,
@@ -171,20 +188,23 @@
       c.round=newRound(id);
     }
     const r=c.round,head=r.steps[0];
-    if(head?.id!==id||head.kind!=='study'||r.feedback){
+    if(head?.id===id&&head.kind==='study'&&!r.feedback){
+      delete head.drill;
+    }else{
       if(r.feedback)advanceStep(c,r);
       // Clicking a dictionary entry exposes its spelling. Keep the original group's
       // unfinished steps, but put another word between this model and its recall.
       const rest=r.steps.filter(step=>step.id!==id);
       const spacer=rest.shift()||{kind:'bridge',id:r.words.find(other=>other!==id)};
       r.steps=[{kind:'study',id},...(spacer.id?[spacer]:[]),
-        {kind:r.done.includes(id)?'bridge':'quiz',id},...rest];
+        r.done.includes(id)?{kind:'bridge',id}:firstRecall(id),...rest];
       r.feedback=null;r.assisted=false;
     }
     save();return view();
   }
   function success(id){
     const r=record(id),today=day();
+    if(item(id).scene)r.usedScene=!r.usedScene;
     if(r.weak || r.lastDay!==today&&(!r.due||r.due<=today)){
       r.level=r.weak?1:Math.min(intervals.length,r.level+1);
       r.due=day(intervals[r.level-1]);r.weak=false;
@@ -208,6 +228,9 @@
     }else if(r.assisted||c.blockedWord===id){
       record(id).weak=true;c.blockedWord=id;
       r.feedback=message('assisted','借助线索拼对了。过一张不同的词卡，再试着自己拼。',{answer:w.word});
+    }else if(head.mode==='spell'){
+      c.blockedWord=null;
+      r.feedback=message('spelled','记住拼法了！换一张卡，稍后在新句子里用这个词。');
     }else{
       c.blockedWord=null;success(id);
       if(!r.done.includes(id))r.done.push(id);
@@ -243,15 +266,31 @@
         const other=r.words.find(k=>k!==id)||[...lists[state.stage].keys()].find(k=>k!==id);
         if(other)r.steps.push({kind:'bridge',id:other});
       }
-      r.steps.push({kind:'quiz',id});
+      r.steps.push(r.feedback.kind==='spelled'?{kind:'quiz',id}:previous);
     }
     r.assisted=false;r.feedback=null;
   }
   function next(){
     load();settle();const c=current(),r=c.round,p=phase(r);
     if(p==='idle'||p==='complete')return start();
-    if(p==='quiz')return view();
+    const head=r.steps[0];
+    if(p==='study'){
+      const drill=window.PhonicsDrill?.create(head.id);
+      if(drill){head.drill=drill;save();return view();}
+    }
+    if(p==='quiz'||p==='listen'||(p==='blend'&&head.drill.cursor<window.VocabIPA[head.id].parts.length))return view();
     advanceStep(c,r);save();return view();
   }
-  window.WordPractice=Object.freeze({getState,selectStage,start,next,answer,reveal,hint,stats,wordStatus,focusWord});
+  function pickPhonics(value,fromWord,fromCursor){
+    load();settle();
+    const r=current().round,p=phase(r);
+    if(p!=='listen'&&p!=='blend')return view();
+    const {id,drill}=r.steps[0];
+    if(fromWord!==undefined&&(fromWord!==id||fromCursor!==drill.cursor))return view();
+    const expected=p==='listen'?window.PhonicsDrill.vowelFor(id):window.VocabIPA[id].parts[drill.cursor]?.[0];
+    if(!expected||!(p==='listen'?drill.options:drill.tiles).includes(value))return view();
+    if(value!==expected)return view(message('retry',p==='listen'?'再比较两个声音，也可以看口形提示。':'已经拼好的部分都在，再听一遍或点提示。'));
+    drill.cursor++;save();return view();
+  }
+  window.WordPractice=Object.freeze({getState,selectStage,start,next,answer,reveal,hint,stats,wordStatus,focusWord,pickPhonics});
 })();
