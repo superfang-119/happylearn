@@ -151,3 +151,98 @@ test('accepted spelling variants pass, while a valid synonym receives meaning fe
   }
   assert.ok(s.game.getState().vocabularyClaimedToday.includes('practice'));
 });
+
+test('mastery rows distinguish viewing a card, assisted attempts, errors, independent spelling and later recall',()=>{
+  const s=visit(),p=s.p;
+  const rows=()=>p.getMasteryRows();
+  const row=id=>rows().find(entry=>entry.id===id);
+  const initial=rows();
+  assert.equal(initial.length,120);assert.equal(initial.filter(r=>r.stage==='primary').length,60);
+  assert.ok(initial.every(r=>r.status==='unseen'&&r.available&&r.subject==='english'&&r.lastDate===null));
+  assert.equal(s.storage.size,0);
+  p.start();
+  assert.equal(row('book').status,'learning');assert.equal(row('book').lastDate,'2026-09-01');
+  assert.equal(p.stats('primary').practiced,0);
+  p.next();p.next();p.next();
+  p.answer('incorrect');
+  assert.equal(row('book').status,'review');assert.equal(row('book').dueDate,null);
+  p.next();p.hint();
+  assert.equal(row('bag').status,'learning');assert.match(row('bag').evidence,/提示/);
+  p.answer('bag');p.next();p.reveal();
+  assert.equal(row('pen').status,'learning');
+  p.next();p.answer('book');
+  assert.equal(row('book').status,'independent');assert.equal(row('book').dueDate,'2026-09-02');
+  s.solveRound();
+  s.date(2);assert.equal(row('book').status,'review');
+  s.solveRound();assert.equal(row('book').status,'retained');assert.equal(row('book').lastDate,'2026-09-02');
+  assert.equal(row('book').dueDate,'2026-09-05');
+  const fresh=visit(s.storage,2);
+  assert.equal(fresh.p.getMasteryRows().find(r=>r.id==='book').status,'retained');
+  s.date(5);assert.equal(row('book').status,'review');
+  p.start();p.answer('incorrect');p.next();p.answer('bag');p.next();p.answer('pen');p.next();p.answer('book');
+  assert.equal(row('book').status,'independent');
+});
+
+test('mastery report is read-only with interrupted wallet payment and offers no active quiz or answer metadata',()=>{
+  const s=visit(),p=s.p,initial=p.start();
+  p.next();p.next();p.next();
+  const wallet=s.game;
+  s.ctx.window.Game={...wallet,rewardVocabulary(){throw new Error('between saves');}};
+  assert.throws(()=>p.answer(initial.word.word),/between saves/);
+  const before=Array.from(s.storage);
+  const restored=visit(s.storage);
+  restored.ctx.window.Game={getState(){throw new Error('read should not touch wallet');},
+    rewardVocabulary(){throw new Error('read should not pay wallet');}};
+  const rows=restored.p.getMasteryRows();
+  assert.deepEqual(Array.from(s.storage),before);
+  assert.equal(rows.find(r=>r.id===initial.word.word).status,'independent');
+  const keys='available,dueDate,evidence,id,lastDate,stage,status,subject,title,word,zh';
+  assert.ok(rows.every(r=>Object.keys(r).sort().join(',')===keys));
+  rows[0].status='changed';assert.notEqual(restored.p.getMasteryRows()[0].status,'changed');
+});
+
+test('legacy mastery rows infer retained only from an actual advanced independent schedule',()=>{
+  const old={stage:'primary',courses:{primary:{records:{
+    book:{level:2,lastDay:'2026-09-01',due:'2026-09-04',errors:2},
+    pen:{weak:true,errors:1},
+    ruler:{weak:true,errors:0},
+    bag:{lastDay:'2026-02-31',due:'2026-02-31',level:4},
+    desk:{level:1,lastDay:'2026-09-01',due:'2026-09-02'},
+    chair:{weak:true,lastDay:'2026-09-01',level:1}
+  }}}};
+  const save=JSON.stringify(old),storage=new Map([[sessionKey,save]]),{p}=visit(storage);
+  const byId=new Map(Array.from(p.getMasteryRows(),r=>[r.id,r]));
+  assert.equal(byId.get('book').status,'retained');assert.equal(byId.get('pen').status,'review');
+  assert.equal(byId.get('ruler').status,'learning');assert.equal(byId.get('ruler').lastDate,null);
+  assert.equal(byId.get('pen').lastDate,null);assert.equal(byId.get('bag').status,'learning');
+  assert.equal(byId.get('bag').lastDate,null);assert.equal(byId.get('desk').status,'independent');
+  assert.equal(byId.get('chair').status,'review');assert.equal(storage.get(sessionKey),save);
+});
+
+test('journal records committed word actions, never passive reads or assisted work as independent spelling',()=>{
+  const {p,ctx}=visit(),entries=[];
+  ctx.window.LearnJournal={record(entry){entries.push(entry);}};
+  p.getMasteryRows();p.start();p.getState();p.getMasteryRows();
+  assert.equal(entries.length,0);
+  p.next();p.next();p.next();
+  assert.deepEqual(entries.map(x=>x.outcome),['studied','studied','studied']);
+  assert.equal(entries[0].id,'book');assert.match(entries[0].example,/book/);
+  p.answer('');p.getMasteryRows();assert.equal(entries.length,3);
+  p.answer('wrong');p.next();p.hint();p.answer('bag');p.next();p.reveal();
+  assert.deepEqual(entries.slice(3).map(x=>x.outcome),['wrong','assisted','assisted']);
+  p.next();p.answer('book');p.answer('book');
+  assert.equal(entries.length,7);assert.equal(entries.at(-1).outcome,'correct');
+  assert.ok(entries.every(x=>x.source==='word'&&x.subject==='english'&&x.note));
+});
+
+test('reports can mask pending recall words across stages without modifying progress',()=>{
+  const s=visit(),p=s.p;
+  assert.deepEqual(Array.from(p.getPendingRecallWords()),[]);
+  p.start();p.next();p.next();p.next();
+  p.selectStage('junior');p.next();p.next();p.next();
+  const raw=s.storage.get(sessionKey);
+  assert.deepEqual(Array.from(p.getPendingRecallWords()),['book','subject']);
+  assert.equal(s.storage.get(sessionKey),raw);
+  p.hint();assert.ok(p.getPendingRecallWords().includes('subject'));
+  p.reveal();assert.deepEqual(Array.from(p.getPendingRecallWords()),['book']);
+});

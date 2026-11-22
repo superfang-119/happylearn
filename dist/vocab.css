@@ -72,3 +72,5 @@
   .vw-info{margin-bottom:7px}.vw-example{margin-top:8px;padding-top:6px}.vw-wordline{gap:5px}
   .vw-full{gap:3px}.vw-full button{min-height:36px}
 }
+.vw-after-note{margin:8px 0 15px;color:#365746}
+.vw-after-note>summary{font-weight:700;cursor:pointer;padding:7px 0;text-decoration:underline;text-underline-offset:3px}

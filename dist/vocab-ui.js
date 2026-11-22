@@ -57,15 +57,16 @@
     const exposed=['correct','revealed','assisted'].includes(f.kind);
     const heading={correct:'独立拼对了！',assisted:'在提示下拼对了',revealed:'再认识一下',wrong:f.reason==='alternative'?'意思对了，换个词想想':'差一点，再找找线索',empty:'先试着写一个词'}[f.kind] || '继续练习';
     const reward=f.coinGain||f.xpGain?'<small class="vw-reward">＋'+escape(f.xpGain||0)+' XP · ＋'+escape(f.coinGain||0)+' 币</small>':'';
+    const explain=!exposed&&f.kind==='wrong'?'<details class="vw-after-note"><summary>看看这个词怎么记</summary>'+model(w)+'</details>':'';
     return info(heading)+(exposed?model(w):cloze(w))+
-      '<p class="vw-gentle">'+escape(f.message||'稍后再换个时机试试。')+'</p><div class="vw-actions">'+btn('next','继续练习',true)+reward+'</div>';
+      '<p class="vw-gentle">'+escape(f.message||'稍后再换个时机试试。')+'</p>'+explain+'<div class="vw-actions">'+btn('next','继续练习',true)+reward+'</div>';
   }
   function training(){
     const w=state.word,group=state.roundWords||[];
     if(state.phase==='complete'){
       return info('这组练完了','每组练习会优先安排到期的词')+'<div class="vw-done"><img src="art/treasure.png" alt=""><h3 tabindex="-1" id="vw-focus">记下这 '+escape(state.roundSize||group.length)+' 个词</h3></div>'+
         '<ul class="vw-recap">'+group.map(item=>typeof item==='string'?words.find(x=>x.word===item&&x.stage===state.stage):item).filter(Boolean).map(item=>'<li><b lang="en">'+escape(item.word)+'</b><span>'+escape(item.zh)+'</span></li>').join('')+'</ul>'+
-        '<div class="vw-actions">'+btn('start','学下一组',true)+btn('bank','看看词库')+'</div>';
+        '<div class="vw-actions">'+btn('start','学下一组',true)+btn('journal','今天的知识讲解')+btn('bank','看看词库')+'</div>';
     }
     if(!w) return '<div class="vw-actions">'+btn('start','开始学词',true)+'</div>';
     if(state.phase==='study'){
@@ -170,6 +171,9 @@
     }
     const k=b.dataset.wordAct;if(!k)return;
     if(k==='close'){dialog.close();return;}
+    if(k==='journal'){
+      const target=opener;dialog.close();window.LearnJournal?.open(target);return;
+    }
     if(k==='toggle-bank'||k==='bank'){
       pane=k==='bank'||pane==='learn'?'bank':'learn';query='';
       render(true);return;

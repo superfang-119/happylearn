@@ -3,12 +3,12 @@ const assert = require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {openGame}=require('./game-fixture.cjs');
 const source=file=>fs.readFileSync(path.join(__dirname,'../dist',file),'utf8');
-function visit(storage=new Map(),date=8){
+function visit(storage=new Map(),date=8,journal){
   const instant=new Date(2026,9,date,12).getTime();
   class Clock extends Date {constructor(...args){super(...(args.length?args:[instant]));}}
   const legacy=openGame(storage,Clock),events=[];
   const context={Date:Clock,CustomEvent:class{constructor(type,init){this.type=type;this.detail=init.detail;}},
-    window:{LEARNING_CONTENT:{subjects:legacy.subjects,missions:legacy.missions},Game:legacy.game,
+    window:{LEARNING_CONTENT:{subjects:legacy.subjects,missions:legacy.missions},Game:legacy.game,LearnJournal:journal,
       dispatchEvent(event){events.push(event);}},
     localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)}};
   vm.runInNewContext(source('learn-facts.js'),context);
@@ -144,4 +144,100 @@ test('switching back to English resumes the focused English challenge across a r
   const resumed=b.round.selectSubject('english');
   assert.equal(resumed.topicId,first.id);
   assert.equal(resumed.question.wrong.length,1);
+});
+
+const firstEnglish='en-name';
+const mastery=(visit,id=firstEnglish)=>visit.round.getMasteryRows().find(row=>row.id===id);
+
+test('mastery report is pure and distinguishes opening one question from unlocking, passing or studying the others',()=>{
+  const storage=new Map(),s=visit(storage);
+  const rows=s.round.getMasteryRows();
+  assert.equal(rows.length,36);assert.equal(new Set(rows.map(r=>r.id)).size,36);
+  assert.ok(rows.every(r=>r.status==='unseen'&&r.lastDate===null&&r.dueDate===null&&r.evidence));
+  assert.equal(rows.filter(r=>r.available).length,4);assert.equal(storage.size,0);
+  s.round.getState();
+  assert.equal(mastery(s).status,'learning');assert.equal(mastery(s).lastDate,null);
+  assert.equal(mastery(s,'en-colour').status,'unseen');assert.equal(mastery(s,'en-colour').available,false);
+  const before=JSON.stringify([...storage]);s.round.getMasteryRows();s.round.getMasteryRows();
+  assert.equal(JSON.stringify([...storage]),before);assert.equal(s.game.getState().coins,0);
+});
+
+test('only clean answers on two distinct local calendar dates establish retained, with weak and due evidence taking precedence',()=>{
+  const storage=new Map(),first=visit(storage,8);
+  first.round.openTopic(firstEnglish);first.solve();first.round.next();
+  assert.equal(mastery(first).status,'independent');assert.equal(mastery(first).lastDate,'2026-10-08');
+  assert.equal(mastery(first).dueDate,'2026-10-09');
+  first.round.openTopic(firstEnglish);first.solve();first.round.next();assert.equal(mastery(first).status,'independent');
+  const next=visit(storage,9);
+  assert.equal(mastery(next).status,'review');
+  next.round.openTopic(firstEnglish);next.solve();next.round.next();
+  assert.equal(mastery(next).status,'retained');
+  assert.match(mastery(next).evidence,/2026-10-08.*2026-10-09/);
+  assert.equal(mastery(visit(storage,12)).status,'review');
+
+  const lapse=visit(storage,10);
+  lapse.round.openTopic(firstEnglish);lapse.wrong();
+  assert.equal(mastery(lapse).status,'review');assert.equal(mastery(lapse).lastDate,'2026-10-10');
+  lapse.solve();lapse.round.next();lapse.round.hint();lapse.solve();lapse.round.next();
+  assert.equal(mastery(lapse).status,'review');
+  lapse.solve();lapse.round.next();
+  assert.equal(mastery(lapse).status,'review');
+  const again=visit(storage,11);
+  again.round.openTopic(firstEnglish);again.solve();again.round.next();
+  assert.match(mastery(again).evidence,/2026-10-10.*2026-10-11/);
+});
+
+test('old passes, badges, review levels and malformed dates never manufacture retained evidence',()=>{
+  const storage=new Map();
+  storage.set('happylearn.learning.rounds.v1',JSON.stringify({
+    passed:['en-name','en-colour','en-under'],
+    memory:{
+      'en-name':{due:'2026-10-21',last:'2026-10-07',stage:3,sequence:2,weak:false},
+      'en-colour':{due:'2026-10-21',last:'2026-10-07',stage:3,sequence:5,weak:true},
+      'en-under':{due:'2026-10-21',last:'2026-10-08',stage:3,sequence:6,
+        firstIndependent:'2026-02-30',recalledOn:'2026-10-07'}
+    }
+  }));
+  const old=visit(storage,8),before=JSON.stringify([...storage]);
+  assert.equal(mastery(old).status,'independent');assert.equal(mastery(old,'en-colour').status,'review');
+  assert.equal(mastery(old,'en-under').status,'independent');assert.equal(JSON.stringify([...storage]),before);
+  old.round.openTopic(firstEnglish);old.solve();old.round.next();
+  assert.equal(mastery(old).status,'independent');
+  const after=visit(storage,9);after.round.openTopic(firstEnglish);after.solve();after.round.next();
+  assert.equal(mastery(after).status,'retained');
+});
+
+test('reading a pending overnight payment does not replay it, and settling it records only the actual answering day',()=>{
+  const backend=new Map();let crash=true;
+  const storage={
+    get:k=>backend.get(k),
+    set(k,v){
+      if(crash&&k==='happylearn.learning.rounds.v1'&&JSON.parse(v).rounds.english?.phase==='feedback'){
+        crash=false;throw Error('interrupted');
+      }
+      backend.set(k,v);
+    }
+  };
+  const yesterday=visit(storage,8);yesterday.solve();
+  const log=[],today=visit(backend,9,{record:entry=>log.push(entry)}),before=JSON.stringify([...backend]);
+  assert.equal(mastery(today).status,'learning');assert.equal(JSON.stringify([...backend]),before);
+  today.round.getState();assert.equal(today.game.getState().coins,10);
+  const r=mastery(today);assert.equal(r.lastDate,'2026-10-08');assert.equal(r.status,'independent');assert.equal(log.length,0);
+});
+
+test('journal receives true submissions and assistance with topic-specific explanations, but no reads or rejected input',()=>{
+  const log=[],s=visit(new Map(),8,{record:entry=>log.push(entry)});
+  s.round.openTopic(firstEnglish);s.round.getMasteryRows();s.round.answer(-1);
+  assert.equal(log.length,0);
+  s.wrong();s.round.hint();s.solve();s.round.next();
+  const practice=s.actual();
+  s.solve();s.round.next();s.round.getMasteryRows();
+  assert.deepEqual(log.map(e=>e.outcome),['wrong','assisted','correct']);
+  assert.ok(log.every(e=>e.source==='topic'&&e.id===firstEnglish&&e.subject==='english'&&e.title===s.facts[firstEnglish].topic&&e.note));
+  assert.equal(log[2].note,practice.explain);assert.match(log[0].example,/My name is/);
+  const second=s.round.getTopicProgress().bySubject.english[1].id;
+  s.round.openTopic(second);s.round.hint();assert.equal(log.at(-1).outcome,'assisted');
+
+  const t=visit(new Map(),8,{record(){throw Error('journal unavailable');}});
+  assert.ok(t.solve().correct);assert.equal(t.game.getState().coins,10);
 });

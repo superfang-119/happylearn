@@ -1,0 +1,13 @@
+#learn-journal{width:min(620px,calc(100% - 24px));max-height:86dvh;margin:auto;padding:0;overflow:auto;border:1px solid #9da894;border-radius:14px;background:#fcfbf3;color:#244534;font:500 1rem/1.55 var(--cn,system-ui,sans-serif)}
+#learn-journal::backdrop{background:#172b228c}
+#learn-journal *{box-sizing:border-box}
+.lj-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid #c6d1bd;background:#eaf0dd}
+.lj-top h2{margin:0;font-size:1.35rem}.lj-top button,.lj-body select{min-height:42px;padding:5px 12px;border:1px solid #9bab95;border-radius:7px;background:#fffdf3;color:#294a37;font:inherit}
+.lj-body{padding:16px 18px}.lj-body label{margin-right:10px;font-weight:700}.lj-body ul{list-style:none;margin:10px 0;padding:0}
+.lj-body li{border-block-end:1px solid #d3d9ca}.lj-body summary{display:flex;align-items:center;gap:10px;justify-content:space-between;cursor:pointer;padding:10px 0}
+.lj-body summary::after{content:'＋';color:#437451}.lj-body details[open] summary::after{content:'−'}
+.lj-body summary>span{flex:1;min-width:0}.lj-body summary strong,.lj-body summary small{display:block;overflow-wrap:anywhere}
+.lj-body summary b{font-size:.83rem;color:#52663e}.lj-body small,.lj-foot,.lj-meta{font-size:.88rem;color:#526653}
+.lj-copy{padding:0 8px 12px 12px;border-left:3px solid #baceab;overflow-wrap:anywhere}.lj-copy p{margin:4px 0;white-space:pre-line}
+.lj-example{color:#4d684e}.lj-empty{padding:18px 0}.lj-foot{margin:14px 0 0}
+#learn-journal :focus-visible{outline:3px solid #ad8516;outline-offset:2px}

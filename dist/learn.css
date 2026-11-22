@@ -17,6 +17,20 @@
 #learn-home h1,#learn-home h2,#learn-home p{margin:0}
 #learn-home button{font-family:inherit;color:inherit}
 #learn-home button:focus-visible{outline:3px solid #a87510;outline-offset:3px}
+#learn-home .lh-report-entry,#learn-home .lh-score-entry{border-radius:7px;min-height:38px;padding:5px 11px;white-space:nowrap;font-size:.94rem;font-weight:730}
+#learn-home .lh-report-entry{background:#e6efd4;color:#284a39;border:1px solid #b8ceaa}
+#learn-home .lh-score-entry{background:#28593e;color:#fff9e9;border:1px solid #264c37}
+#learn-home .lh-score-entry[hidden]{display:none}
+#learn-home .lh-journal-link{color:#2d5b40;background:transparent;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:510px){
+  #learn-home .lh-report-entry,#learn-home .lh-score-entry{padding:4px 6px;font-size:.85rem}
+  #learn-home .lh-titleline{gap:7px;flex-wrap:wrap}
+  #learn-home .lh-brand>span{display:none}
+}
+@media(max-width:370px){
+  #learn-home .lh-bar-inner{gap:4px}#learn-home .lh-brand{gap:3px}#learn-home .lh-brand img{display:none}
+  #learn-home .lh-vocab-entry small{display:none}
+}
 #learn-home [tabindex="-1"]:focus-visible{outline:none}
 .lh-width{width:min(984px,calc(100% - clamp(30px,8vw,96px)));margin-inline:auto}
 .lh-bar{color:#fff5dd;background:#203e34;border-bottom:3px solid #96b69c;box-shadow:0 2px 4px #5547251f}

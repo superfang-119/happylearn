@@ -16,15 +16,16 @@
   home.innerHTML = '<header class="lh-bar"><div class="lh-width lh-bar-inner"><div class="lh-brand">'+
     '<img src="art/logo.png" width="36" height="36" alt=""><b>快乐学</b><span>七年级上册</span></div>'+
     '<div class="lh-profile"><div class="lh-wallet" aria-label="学习等级与金币"></div>'+
+    '<button class="lh-report-entry" type="button" data-learn="mastery">我的学情</button>'+
     '<button class="lh-dress" type="button" data-learn="dress"><img alt="" src="art/avatar.png"><span>换装</span></button>'+
     '<button class="lh-medals" type="button" data-learn="medals"><span aria-hidden="true">✦</span> 勋章</button></div></div></header>'+
-    '<div class="lh-width lh-main"><section class="lh-heading" aria-labelledby="lh-title"><div class="lh-titleline"><h1 id="lh-title">英语闯关</h1><span class="lh-round-size">每轮 3 题</span><button type="button" class="lh-vocab-entry" data-learn="vocab"><img alt="" src="art/english.png"><span><b>单词练习</b><small>3 词一组 · 听音拼词</small></span></button></div>'+
+    '<div class="lh-width lh-main"><section class="lh-heading" aria-labelledby="lh-title"><div class="lh-titleline"><h1 id="lh-title">英语闯关</h1><span class="lh-round-size">每轮 3 题</span><button class="lh-score-entry" type="button" data-learn="check">英语提分练</button><button type="button" class="lh-vocab-entry" data-learn="vocab"><img alt="" src="art/english.png"><span><b>单词练习</b><small>3 词一组 · 听音拼词</small></span></button></div>'+
     '<nav class="lh-filters" aria-label="选择学习科目">'+
     '<button class="lh-english-track" type="button" data-scope="english"><img alt="" src="art/english.png"><span>英语主线</span></button>'+
     subjects.filter(s=>s.id!=='english').map(s=>'<button type="button" data-scope="'+esc(s.id)+'"><img alt="" src="'+subjectArt[s.id]+'">'+esc(s.name)+'</button>').join('')+
     '<button type="button" data-scope="all"><i class="lh-four" aria-hidden="true"></i>四科轮练</button>'+
     '</nav></section><div class="lh-workspace"><section id="learn-trail-inline"></section><section class="lh-page" aria-label="当前学习任务"></section></div>'+
-    '<nav class="lh-extra" aria-label="其他活动"><button type="button" data-learn="hub">群岛探险</button><span aria-hidden="true">·</span>'+
+    '<nav class="lh-extra" aria-label="更多学习与活动"><button type="button" data-learn="journal">每日讲解</button><span aria-hidden="true">·</span><button type="button" data-learn="hub">群岛探险</button><span aria-hidden="true">·</span>'+
     '<button type="button" data-learn="city">日落港</button><span aria-hidden="true">·</span><button type="button" data-learn="shop">道具商店</button></nav>'+
     '</div><div class="lh-sr" aria-live="polite" aria-atomic="true" id="lh-live"></div>';
   const panel = home.querySelector('.lh-page');
@@ -35,9 +36,11 @@
   const pageTitle = home.querySelector('#lh-title');
   const englishLabel = home.querySelector('.lh-english-track span');
   const vocabButton=home.querySelector('.lh-vocab-entry');
+  const checkButton=home.querySelector('.lh-score-entry');
   function updateVocabEntry() {
     const api=window.WordPractice;
     vocabButton.hidden=!window.WordPracticeUI || state?.subject!=='english';
+    checkButton.hidden=state?.subject!=='english';
     if(vocabButton.hidden||!api)return;
     const due=api.stats('primary').due+api.stats('junior').due;
     const copy=due?due+' 个词待复习':'3 词一组 · 听音拼词';
@@ -155,7 +158,7 @@
     return '<div class="lh-content lh-finished"><img class="lh-trophy" src="art/treasure.png" width="62" height="62" alt="">'+
       '<h2 class="lh-question" id="lh-question" tabindex="-1">'+(s.topicId?'这一关学会了！':'这一轮学完了！')+'</h2>'+
       (recovered?'<p class="lh-recovered">刚才拿不准的 '+esc(recovered)+' 个知识点，你在新场景里用对了。</p>':'')+
-      memory+'<div class="lh-nextline"><button class="lh-primary" type="button" data-learn="new">'+continueLabel+'</button>'+
+      memory+'<div class="lh-nextline"><button class="lh-primary" type="button" data-learn="new">'+continueLabel+'</button><button class="lh-journal-link" type="button" data-learn="journal">今天的知识讲解</button>'+
       (s.roundXp||s.roundCoins?'<span class="lh-smallreward">本轮 ＋'+esc(s.roundXp)+' XP · ＋'+esc(s.roundCoins)+' 币</span>':'')+'</div></div>';
   }
 
@@ -192,7 +195,7 @@
   }
   function doLearning(key,value) {
     if(busy || home.hidden)return;
-    if(['hub','city','shop','dress','medals','vocab'].includes(key))window.LearnVoice?.stop();
+    if(['hub','city','shop','dress','medals','vocab','mastery','check','journal'].includes(key))window.LearnVoice?.stop();
     busy=true;
     try {
       if(key==='answer') {
@@ -217,6 +220,9 @@
       else if(key==='city') window.LearnRoutes?.openCity();
       else if(key==='shop') window.HarborShop?.open('shop');
       else if(key==='vocab') window.WordPracticeUI?.open(vocabButton);
+      else if(key==='mastery') window.MasteryReport?.open(home.querySelector('[data-learn="mastery"]'));
+      else if(key==='journal') window.LearnJournal?.open(document.activeElement);
+      else if(key==='check') window.EnglishCheckUI?.open(checkButton);
       else if(key==='dress') window.LearnWardrobe?.open?.(dress);
       else if(key==='medals') window.LearnTrail?.openMedals?.(home.querySelector('[data-learn="medals"]'));
     } finally {busy=false;}
@@ -255,6 +261,29 @@
   window.addEventListener('word-practice-ready',updateVocabEntry);
   window.addEventListener('vocab-progress',updateVocabEntry);
   window.addEventListener('learn-outfit-change',e=>updateOutfit(e.detail));
+  window.MasteryPractice=Object.freeze({
+    topic(id){
+      const result=round.openTopic(id);
+      if(result.ok)window.dispatchEvent(new CustomEvent('learn-trail-topic',{detail:result}));
+      return result.ok;
+    },
+    word(id,stage,button){
+      window.WordPractice.focusWord(id,stage);
+      window.WordPracticeUI.open(button,stage);
+    },
+    skills(){
+      const summary=window.EnglishCheck.stats();
+      return Object.entries(summary.bySkill).map(([id,v])=>{
+        const status=!v.attempts?'unseen':v.needsPractice?'review':v.retained?'retained':v.correct?'independent':'learning';
+        return {id,subject:'english',title:v.name,status,lastDate:v.lastDay,dueDate:null,available:true,
+          evidence:v.attempts?'已答 '+v.attempts+' 次，其中答对 '+v.correct+' 次、答错 '+v.wrong+' 次、选“还不会” '+v.skipped+' 次。':'还没有这项能力的作答记录。'};
+      });
+    },
+    check:button=>window.EnglishCheckUI.open(button,'diagnostic'),
+    skill:(id,button)=>window.EnglishCheckUI.open(button,id),
+    exam:(id,button)=>window.ExamBridge.open(button,id),
+    journal:button=>window.LearnJournal.open(button)
+  });
   window.LearnHome=Object.freeze({
     open(){home.hidden=false;render();},
     close(){window.LearnVoice?.stop();home.hidden=true;},

@@ -18,7 +18,11 @@
     const now=new Date(),d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+offset,12);
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
-  const isDay=s=>typeof s==='string'&&/^\d{4}-\d\d-\d\d$/.test(s);
+  function isDay(s) {
+    if(typeof s!=='string'||!/^\d{4}-\d\d-\d\d$/.test(s))return false;
+    const [y,m,d]=s.split('-').map(Number), actual=new Date(y,m-1,d,12);
+    return actual.getFullYear()===y && actual.getMonth()===m-1 && actual.getDate()===d;
+  }
   function material(r) {
     const id=r.phase==='complete'?null:r.mode==='review'?r.reviews[r.reviewIndex]?.id:r.ids[r.baseIndex];
     const m=byId.get(id);
@@ -78,8 +82,15 @@
       }
       for(const id of byId.keys()) {
         const m=s.memory?.[id];
-        if(m&&isDay(m.due)&&isDay(m.last)&&integer(m.stage,3)&&integer(m.sequence))
+        if(m&&isDay(m.due)&&isDay(m.last)&&integer(m.stage,3)&&integer(m.sequence)) {
           fresh.memory[id]={due:m.due,last:m.last,stage:m.stage,weak:!!m.weak,needsIndependent:!!m.needsIndependent,sequence:m.sequence};
+          const record=fresh.memory[id];
+          if(!record.needsIndependent && isDay(m.firstIndependent) && m.firstIndependent<=m.last) {
+            record.firstIndependent=m.firstIndependent;
+            if(isDay(m.recalledOn) && m.recalledOn>m.firstIndependent && m.recalledOn<=m.last)
+              record.recalledOn=m.recalledOn;
+          }
+        }
       }
     } catch { /* Recover the learner's wallet independently when a round save is damaged. */ }
     // Previous round saves have dated records of independent successes.
@@ -128,6 +139,45 @@
     }
     return {passed,total:cards.length,bySubject,topics:order.flatMap(subject=>bySubject[subject])};
   }
+
+  function getMasteryRows() {
+    const {topics}=getTopicProgress();
+    const today=day(), journal=game.getState();
+    // The basic round reader starts the next question and can settle a pending
+    // receipt. Read existing checkpoints directly when building a report.
+    const opened=new Set(Object.values(data.rounds).map(r=>material(r)?.id).filter(Boolean));
+    return topics.map(topic=>{
+      const {id,subject,title}=topic, mem=data.memory[id];
+      const legacy=journal.reviewSchedule?.[id];
+      const dueDate=mem?.due??legacy?.due??null;
+      const playedToday=journal.quizClaimedToday?.includes(id)||journal.quizWrongToday?.[id]?.length;
+      const lastDate=playedToday && (!mem||mem.last<today)?today:mem?.last??null;
+      let status='unseen',evidence='尚无练习记录。';
+      if(mem?.needsIndependent || (!mem&&(journal.mistakes?.[id]||journal.quizWrongToday?.[id]?.length))) {
+        status='review';evidence='曾答错或使用提示，还需要独立回想。';
+      } else if(dueDate && dueDate<=today) {
+        status='review';evidence='已到复习日期，等待本次独立作答。';
+      } else if(mem?.weak) {
+        status='review';evidence=mem.firstIndependent?'已独立纠正，安排再巩固一次。':'这个知识点仍需巩固。';
+      } else if(mem?.recalledOn && mem.recalledOn<=today) {
+        status='retained';evidence=mem.firstIndependent+' 和 '+mem.recalledOn+' 均独立答对。';
+      } else if(mem?.firstIndependent || topic.status==='passed') {
+        status='independent';evidence=mem?.firstIndependent?'已独立答对，等待跨日验证。':'已有独立通关记录，尚待跨日验证。';
+      } else if(mem || opened.has(id) || playedToday || journal.completed?.includes(id) || journal.active?.id===id) {
+        status='learning';evidence='已有学习记录，尚无独立通过的证据。';
+      }
+      return {id,subject,title,status,lastDate,dueDate,available:topic.status!=='locked',evidence};
+    });
+  }
+
+  function logTopic(m,outcome,note) {
+    const fact=window.LearnFacts?.[m.id],model=fact?.model;
+    const entry={source:'topic',id:m.id,title:fact?.topic||m.m.title,subject:m.m.subject,outcome,
+      note:note||m.lesson+' '+m.item.hint};
+    if(model?.en && model.zh)entry.example=model.en+'　'+model.zh;
+    // Journal availability must never interrupt a reply or a saved checkpoint.
+    try {window.LearnJournal?.record?.(entry);} catch {}
+  }
   function pass(id) {
     if(data.passed.includes(id))return false;
     const next=sequenceFor(byId.get(id).subject).find(m=>!data.passed.includes(m.id));
@@ -171,23 +221,31 @@
     else save();
     return {ok:true,reason:'opened',message:entry.title,state:getState()};
   }
-  function memoryFor(id) {
-    return data.memory[id]||(data.memory[id]={due:day(1),last:day(),stage:0,weak:false,sequence:0});
+  function memoryFor(id,on=day()) {
+    return data.memory[id]||(data.memory[id]={due:day(1),last:on,stage:0,weak:false,sequence:0});
   }
-  function remember(id,supported,isRecovery) {
-    const known=data.memory[id],today=day(),mem=memoryFor(id);
+  function remember(id,supported,isRecovery,on=day()) {
+    const known=data.memory[id],today=day(),mem=memoryFor(id,on);
     if(supported||isRecovery) {
       mem.stage=0;mem.weak=true;mem.due=day(1);
     } else if(!known || mem.due<=today) {
       mem.stage=known?Math.min(mem.stage+1,intervals.length-1):0;
       mem.due=day(intervals[mem.stage]);mem.weak=false;
     }
-    mem.last=today;mem.sequence=++data.sequence;
+    if(!supported) {
+      if(!mem.firstIndependent)mem.firstIndependent=on;
+      else if(on>mem.firstIndependent && (!mem.recalledOn||on>mem.recalledOn))mem.recalledOn=on;
+    }
+    if(on>mem.last)mem.last=on;
+    mem.sequence=++data.sequence;
   }
-  function markTrouble(r,id) {
+  function markTrouble(r,id,on=day()) {
     if(r.mode==='learn'&&!r.reviews.some(q=>q.id===id))r.reviews.push({id,attempt:0});
-    const mem=memoryFor(id);
+    const mem=memoryFor(id,on);
     mem.weak=true;mem.needsIndependent=true;mem.due=day(1);mem.stage=0;
+    if(on>mem.last)mem.last=on;
+    delete mem.firstIndependent;
+    delete mem.recalledOn;
   }
 
   function snapshot(r) {
@@ -262,9 +320,10 @@
       if(earned)r.receipts[intent.id]=true;
     }
     const {id}=material(r);
-    const supported=r.wrong.length>0||r.hinted||!!data.memory[id]?.needsIndependent||Number.isInteger(game.getState().quizEliminatedToday?.[id]);
-    if(supported)markTrouble(r,id);
-    remember(id,supported,false);
+    const supported=r.wrong.length>0||r.hinted||!!data.memory[id]?.needsIndependent||
+      intent.usedInsight===true||(intent.day===now&&Number.isInteger(game.getState().quizEliminatedToday?.[id]));
+    if(supported)markTrouble(r,id,intent.day);
+    remember(id,supported,false,intent.day);
     const changed=!supported&&pass(id);
     gain.passedNow=changed;
     r.selected=intent.index;r.pending=null;r.phase='feedback';save();signalPass(changed);
@@ -280,37 +339,46 @@
     if(index!==m.item.answer) {
       if(r.mode==='learn')game.answerCityQuiz(m.id,index);
       r.wrong.push(index);r.hinted=true;markTrouble(r,m.id);save();
+      logTopic(m,'wrong');
       return result(r,{ok:true,message:m.item.hint});
     }
     let gain={};
+    const assisted=r.wrong.length>0||r.hinted||(r.mode==='learn'&&
+      (data.memory[m.id]?.needsIndependent||Number.isInteger(w.quizEliminatedToday?.[m.id])));
     if(r.mode==='learn') {
-      r.pending={id:m.id,index,day:day(),wasUnclaimed:!w.quizClaimedToday.includes(m.id)};
+      r.pending={id:m.id,index,day:day(),wasUnclaimed:!w.quizClaimedToday.includes(m.id),
+        usedInsight:Number.isInteger(w.quizEliminatedToday?.[m.id])};
       save();gain=settle(r);
     } else {
       const attempt=r.reviews[r.reviewIndex].attempt;
       let changed=false;
-      if(r.wrong.length||r.hinted)r.reviews.push({id:m.id,attempt:attempt+1});
+      const supported=r.wrong.length>0||r.hinted;
+      if(supported)r.reviews.push({id:m.id,attempt:attempt+1});
       else {
         if(!r.recovered.includes(m.id))r.recovered.push(m.id);
         memoryFor(m.id).needsIndependent=false;
         changed=pass(m.id);
       }
-      remember(m.id,false,true);
+      remember(m.id,supported,true);
       gain.passedNow=changed;
       r.phase='feedback';r.selected=index;save();signalPass(changed);
     }
+    logTopic(m,assisted?'assisted':'correct',m.item.explain);
     return result(r,{ok:true,correct:true,message:m.item.explain,...gain});
   }
   function hint() {
     const r=current(),m=material(r);
-    if(r.phase==='question'&&m&&!r.hinted){r.hinted=true;markTrouble(r,m.id);save();}
+    if(r.phase==='question'&&m&&!r.hinted){r.hinted=true;markTrouble(r,m.id);save();logTopic(m,'assisted');}
     return snapshot(r);
   }
   function useInsight() {
     const r=current(),m=material(r);
     if(!m||r.mode!=='learn'||r.phase!=='question')return {ok:false,eliminated:null,message:'回想时试着独立选一次。',state:snapshot(r)};
     const answer=game.useQuizInsight(m.id,r.wrong);
-    if(answer.ok) {r.hinted=true;markTrouble(r,m.id);save();}
+    if(answer.ok) {
+      r.hinted=true;markTrouble(r,m.id);save();
+      if(answer.reason!=='already_used')logTopic(m,'assisted');
+    }
     return {...answer,state:snapshot(r)};
   }
   function next() {
@@ -323,5 +391,5 @@
     else r.phase='complete';
     save();return snapshot(r);
   }
-  window.LearnRound=Object.freeze({getState,getTopicProgress,openTopic,selectSubject,nextRound,answer,next,hint,useInsight});
+  window.LearnRound=Object.freeze({getState,getTopicProgress,getMasteryRows,openTopic,selectSubject,nextRound,answer,next,hint,useInsight});
 })();

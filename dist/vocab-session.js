@@ -6,14 +6,18 @@
   const key='happylearn.vocabulary.practice.v1';
   const normalize=s=>typeof s==='string'?s.normalize('NFKC').trim().toLowerCase().replace(/[‘’]/g,"'").replace(/\s+/g,' '):'';
   const lists=Object.fromEntries(stages.map(s=>[s,new Map(words.filter(w=>w.stage===s&&normalize(w.word)).map(w=>[normalize(w.word),w]))]));
-  const emptyCourse=()=>({records:{},blockedWord:null,round:null,suspended:null});
+  const emptyCourse=()=>({records:{},seenDates:{},blockedWord:null,round:null,suspended:null});
   const blank=()=>({stage:'primary',courses:{primary:emptyCourse(),junior:emptyCourse()}});
   let state=blank(),lastRaw=null,canStore=true,settling=false;
   function day(offset=0){
     const now=new Date(),d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+offset,12);
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
-  const validDay=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value);
+  function validDay(value){
+    if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+    const [y,m,d]=value.split('-').map(Number),date=new Date(y,m-1,d,12);
+    return date.getFullYear()===y&&date.getMonth()===m-1&&date.getDate()===d;
+  }
   const count=v=>Number.isSafeInteger(v)&&v>=0?v:0;
   const validStage=s=>stages.includes(s);
   const current=()=>state.courses[state.stage];
@@ -47,9 +51,12 @@
       for(const s of stages){
         const old=saved.courses?.[s],course=restored.courses[s];if(!old)continue;
         for(const id of lists[s].keys()){
+          if(validDay(old.seenDates?.[id]))course.seenDates[id]=old.seenDates[id];
           const v=old.records?.[id];if(!v||typeof v!=='object')continue;
           course.records[id]={lastDay:validDay(v.lastDay)?v.lastDay:null,due:validDay(v.due)?v.due:null,
-            level:Math.min(intervals.length,count(v.level)),errors:count(v.errors),weak:!!v.weak};
+            level:Math.min(intervals.length,count(v.level)),errors:count(v.errors),weak:!!v.weak,
+            retained:validDay(v.lastDay)&&!v.weak&&(v.retained===true||(v.retained===undefined&&count(v.level)>=2)),
+            assistedOn:validDay(v.assistedOn)?v.assistedOn:null,missedOn:validDay(v.missedOn)?v.missedOn:null};
         }
         course.blockedWord=lists[s].has(old.blockedWord)?old.blockedWord:null;
         course.round=restoreRound(old.round,lists[s]);course.suspended=restoreRound(old.suspended,lists[s]);
@@ -64,6 +71,22 @@
   }
   function record(id){
     const c=current();return c.records[id]||(c.records[id]={lastDay:null,due:null,level:0,errors:0,weak:false});
+  }
+  // A displayed model is evidence of exposure only. Keeping it separate from
+  // the spelling records preserves the existing order of first-time quizzes.
+  function noteStudyCard(){
+    const c=current(),step=c.round?.steps[0];
+    if(step?.kind!=='study'||c.seenDates[step.id]===day())return false;
+    c.seenDates[step.id]=day();return true;
+  }
+  function logWord(w,outcome){
+    const pronunciation=window.VocabIPA?.[w.word];
+    const note=(pronunciation?.ipa?'读音 /'+pronunciation.ipa+'/。':'')+
+      '核心词义：'+w.zh+'。'+(pronunciation?.focus?pronunciation.focus.letters+' 在这个词里读 /'+pronunciation.focus.sound+'/。'+pronunciation.focus.tip:'盖住词卡，在新句子里再拼一次。');
+    try{
+      window.LearnJournal?.record?.({source:'word',id:w.word,subject:'english',title:w.word+' · '+w.zh,
+        outcome,note,example:w.example+'　'+w.translation});
+    }catch{/* A journal write must not interrupt spelling practice. */}
   }
   function category(course,id,today){
     const r=course.records[id];return !r?'unseen':r.weak||r.due&&r.due<=today?'due':'practiced';
@@ -80,6 +103,39 @@
   function wordStatus(word,stage){
     load();const s=validStage(stage)?stage:state.stage;
     return category(state.courses[s],normalize(typeof word==='object'?word?.word:word),day());
+  }
+  function getMasteryRows(){
+    // In particular, do not call getState(): it settles pending wallet rewards.
+    load();
+    const today=day();
+    return stages.flatMap(stage=>[...lists[stage]].map(([id,w])=>{
+      const c=state.courses[stage],r=c.records[id],seen=c.seenDates[id];
+      const dates=[seen,r?.lastDay,r?.assistedOn,r?.missedOn].filter(Boolean).sort();
+      let status='unseen',evidence='还没有词卡学习或独立拼写记录。';
+      if(r?.weak&&(r.missedOn||(!r.lastDay&&r.errors>0))){
+        status='review';evidence='上次没有独立写出本卡目标词，等待再试。';
+      }else if(r?.weak&&r.lastDay){
+        status='review';evidence='以前曾独立拼对，近期需要帮助或重试，建议再独立拼一次。';
+      }else if(r?.lastDay&&r.due&&r.due<=today){
+        status='review';evidence=r.retained?'曾在不同日期独立拼对，已到复习日。':'曾独立拼对，已到复习日。';
+      }else if(r?.lastDay){
+        status=r.retained?'retained':'independent';
+        evidence=r.retained?'在不同日期独立拼对过这个词。':'已有独立拼写正确的记录，等待隔日再验证。';
+      }else if(r||seen){
+        status='learning';
+        evidence=r?.assistedOn?'已借助提示或示范练习，独立拼写待验证。':
+          r?.weak?'已有求助或重试记录，独立拼写待验证。':'已经看过词卡，独立拼写待验证。';
+      }
+      return {id,subject:'english',stage,word:w.word,zh:w.zh,title:w.word,status,
+        lastDate:dates.at(-1)||null,dueDate:r?.due||null,available:true,evidence};
+    }));
+  }
+  function getPendingRecallWords(){
+    load();
+    return distinct(stages.flatMap(s=>{
+      const c=state.courses[s];
+      return [c.round,c.suspended].filter(r=>phase(r)==='quiz').map(r=>r.steps[0].id);
+    }));
   }
   function sortedWords(){
     const c=current(),today=day();
@@ -149,13 +205,13 @@
     load();settle();const c=current();
     if(!c.round||phase(c.round)==='complete'){
       c.round=c.suspended&&phase(c.suspended)!=='complete'?c.suspended:newRound();
-      c.suspended=null;save();
-    }
+      c.suspended=null;noteStudyCard();save();
+    }else if(noteStudyCard())save();
     return view();
   }
   function selectStage(stage){
     load();settle();
-    if(validStage(stage)&&state.stage!==stage){state.stage=stage;save();}
+    if(validStage(stage)&&state.stage!==stage){state.stage=stage;noteStudyCard();save();}
     if(!current().round)return start();
     return getState();
   }
@@ -181,10 +237,12 @@
         {kind:r.done.includes(id)?'bridge':'quiz',id},...rest];
       r.feedback=null;r.assisted=false;
     }
-    save();return view();
+    noteStudyCard();save();return view();
   }
   function success(id){
     const r=record(id),today=day();
+    r.retained=!!(!r.weak&&(r.retained||r.lastDay&&r.lastDay<today));
+    r.missedOn=null;r.assistedOn=null;
     if(r.weak || r.lastDay!==today&&(!r.due||r.due<=today)){
       r.level=r.weak?1:Math.min(intervals.length,r.level+1);
       r.due=day(intervals[r.level-1]);r.weak=false;
@@ -196,17 +254,20 @@
     if(!norm)return view(message('empty','先拼一个词，再来核对。'));
     const correct=[w.word,...(Array.isArray(w.aliases)?w.aliases:[])].some(v=>normalize(v)===norm);
     if(!correct){
-      if(head.kind!=='bridge'){const rec=record(id);rec.errors++;rec.weak=true;}
+      if(head.kind!=='bridge'){const rec=record(id);rec.errors++;rec.weak=true;rec.missedOn=day();}
       c.blockedWord=id;
       const synonym=Array.isArray(w.alternatives)&&w.alternatives.some(v=>normalize(v)===norm);
+      const focus=window.VocabIPA?.[w.word]?.focus;
+      const missedPair=focus&&/^([a-z])\1$/.test(focus.letters)&&norm===w.word.replace(focus.letters,focus.letters[0]);
       r.feedback=synonym
         ?message('wrong','意思也对！这张卡要练的是另一个英语词，过一张词卡后再想想。',{reason:'alternative'})
+        :missedPair?message('wrong','其余字母都拼对了。这里的 /'+focus.sound+'/ 要用两个 '+focus.letters[0]+' 写成 '+focus.letters+'。听一遍，再试试。')
         :message('wrong','再想想“'+w.zh+'”。这个词有 '+[...w.word.replace(/\s/g,'')].length+' 个字符，一会儿换过词再试。');
     }else if(head.kind==='bridge'){
       if(c.blockedWord!==id)c.blockedWord=null;
       r.feedback=message('correct','间隔练习完成。接下来再想想刚才的词。',{answer:w.word});
     }else if(r.assisted||c.blockedWord===id){
-      record(id).weak=true;c.blockedWord=id;
+      const rec=record(id);rec.weak=true;rec.assistedOn=day();c.blockedWord=id;
       r.feedback=message('assisted','借助线索拼对了。过一张不同的词卡，再试着自己拼。',{answer:w.word});
     }else{
       c.blockedWord=null;success(id);
@@ -214,23 +275,26 @@
       r.feedback=message('correct','独立拼对了！',{answer:w.word});
       r.pending={id,answer:norm,day:day(),fresh:!window.Game.getState().vocabularyClaimedToday?.includes(w.word)};
     }
-    save();settle();return view();
+    save();
+    const outcome=r.feedback.kind==='correct'&&head.kind==='bridge'?'assisted':r.feedback.kind;
+    logWord(w,outcome);
+    settle();return view();
   }
   function answer(raw){load();settle();return phase(current().round)==='quiz'?check(raw):view();}
   function reveal(){
     load();settle();const r=current().round;
     if(phase(r)!=='quiz')return view();
     const s=r.steps[0],w=item(s.id);
-    if(s.kind!=='bridge')record(s.id).weak=true;
+    if(s.kind!=='bridge'){const rec=record(s.id);rec.weak=true;rec.assistedOn=day();}
     current().blockedWord=s.id;
     r.feedback=message('revealed','看一眼拼法：'+w.word+'。换一张词卡后，再回来回想。',{answer:w.word});
-    save();return view();
+    save();logWord(w,'assisted');return view();
   }
   function hint(){
     load();settle();const r=current().round;
     if(phase(r)==='quiz'&&!r.assisted){
       r.assisted=true;current().blockedWord=r.steps[0].id;
-      if(r.steps[0].kind!=='bridge')record(r.steps[0].id).weak=true;
+      if(r.steps[0].kind!=='bridge'){const rec=record(r.steps[0].id);rec.weak=true;rec.assistedOn=day();}
       save();
     }
     return view();
@@ -251,7 +315,10 @@
     load();settle();const c=current(),r=c.round,p=phase(r);
     if(p==='idle'||p==='complete')return start();
     if(p==='quiz')return view();
-    advanceStep(c,r);save();return view();
+    const studied=p==='study'?item(r.steps[0].id):null;
+    advanceStep(c,r);noteStudyCard();save();
+    if(studied)logWord(studied,'studied');
+    return view();
   }
-  window.WordPractice=Object.freeze({getState,selectStage,start,next,answer,reveal,hint,stats,wordStatus,focusWord});
+  window.WordPractice=Object.freeze({getState,getMasteryRows,getPendingRecallWords,selectStage,start,next,answer,reveal,hint,stats,wordStatus,focusWord});
 })();
