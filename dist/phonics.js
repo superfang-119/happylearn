@@ -105,7 +105,7 @@
       const parts=s.parts.map(([letters,sound],i) => '<button type="button" data-ph="part-'+i+'" aria-pressed="'+
         (s.part===i)+'"><span lang="en">'+escape(letters)+'</span><i aria-hidden="true">→</i><b>'+symbol(sound)+'</b></button>').join('');
       const selectedSound=s.parts[s.part]?.[1];
-      const isolated=ears.some(e=>e.sound===selectedSound);
+      const isolated=window.WordAudio?.hasSound?.(selectedSound);
       const partsAudio='<div class="ph-players">'+(isolated?'<button type="button" data-ph="part-sound" class="ph-audio">听这个音 '+symbol(selectedSound)+'</button>':'')+
         '<button type="button" data-ph="whole" class="ph-audio">听整词 <span lang="en">'+escape(s.word)+'</span></button></div>';
       const example=s.demo===null?null:ears[s.demo];
@@ -145,7 +145,7 @@
     }
     if (!s.open) return;
     const [key,raw]=action.split('-'), i=Number(raw);
-    if (action==='part-sound' && s.parts[s.part] && ears.some(e=>e.sound===s.parts[s.part][1])) {
+    if (action==='part-sound' && s.parts[s.part] && window.WordAudio?.hasSound?.(s.parts[s.part][1])) {
       play(s,s.parts[s.part][1],true);
     } else if (action==='whole') {
       play(s,s.word);

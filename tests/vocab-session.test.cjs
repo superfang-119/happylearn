@@ -2,14 +2,15 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 const sessionKey='happylearn.vocabulary.practice.v1';
-function visit(storage=new Map(),date=1){
+function visit(storage=new Map(),date=1,guided=false){
   let instant=new Date(2026,8,date,12).getTime();
   class Clock extends Date {constructor(...args){super(...(args.length?args:[instant]));}}
   const dialog={classList:{add(){}},setAttribute(){},addEventListener(){},querySelectorAll:()=>[],querySelector:()=>null};
   const ctx={Date:Clock,window:{addEventListener(){}},document:{getElementById:()=>dialog},localStorage:{
     getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)
   }};
-  for(const file of ['vocab-data.js','content.js','game.js','vocab-session.js']){
+  const phonics=guided?['vocab-ipa.js','phonics-drill.js']:[];
+  for(const file of ['vocab-data.js',...phonics,'content.js','game.js','vocab-session.js']){
     vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../dist',file),'utf8'),ctx);
   }
   const p=ctx.window.WordPractice;
@@ -150,4 +151,151 @@ test('accepted spelling variants pass, while a valid synonym receives meaning fe
     assert.equal(p.answer(spell).feedback.kind,'correct');
   }
   assert.ok(s.game.getState().vocabularyClaimedToday.includes('practice'));
+});
+
+function advanceGuided(v, state) {
+  const {p, ctx} = v;
+  const word = state.word.word;
+  if (state.phase === 'listen') return p.pickPhonics(ctx.window.PhonicsDrill.vowelFor(word));
+  if (state.phase === 'blend') {
+    const part = ctx.window.VocabIPA[word].parts[state.drill.cursor];
+    if (part) return p.pickPhonics(part[0]);
+  }
+  return state.phase === 'quiz' ? p.answer(word) : p.next();
+}
+function until(v, predicate) {
+  let state = v.p.getState();
+  for (let i = 0; i < 100; i++) {
+    if (predicate(state)) return state;
+    assert.notEqual(state.phase, 'complete', 'round ended before the requested exercise');
+    state = advanceGuided(v, state);
+  }
+  assert.fail('guided round did not advance');
+}
+
+test('every added word reaches listening, blending, independent spelling and an interleaved transfer through the word bank', () => {
+  const words = visit(new Map(),1,true).ctx.window.EnglishWords.filter(w => w.scene);
+  assert.equal(words.length,30);
+  for (const w of words) {
+    const v = visit(new Map(),1,true), {p} = v;
+    const model = p.focusWord(w.word, w.stage);
+    assert.equal(model.roundSize,3);
+    assert.equal(model.phase,'study');
+    let state = p.next();
+    assert.equal(state.phase,'listen',w.word);
+    assert.equal(p.answer(w.word).phase,'listen');
+    assert.equal(p.next().phase,'listen');
+    const vowel = v.ctx.window.PhonicsDrill.vowelFor(w.word);
+    const wrong = state.drill.options.find(s => s !== vowel);
+    assert.equal(p.pickPhonics(wrong).feedback.kind,'retry');
+    state = p.pickPhonics(vowel);
+    assert.equal(state.phase,'blend');
+    for (const [i,[letters]] of v.ctx.window.VocabIPA[w.word].parts.entries()) {
+      const decoy = state.drill.tiles.find(tile => tile !== letters);
+      assert.equal(p.pickPhonics(decoy).drill.cursor,i);
+      assert.equal(p.answer(w.word).drill.cursor,i);
+      state = p.pickPhonics(letters);
+      assert.equal(state.drill.cursor,i+1);
+    }
+    assert.equal(state.roundCoins,0);
+    assert.notEqual(p.next().word.word,w.word);
+    const spell = until(v,s => s.word.word === w.word && s.phase === 'quiz');
+    assert.equal(spell.quizMode,'spell');
+    let result = p.answer(w.word);
+    assert.equal(result.feedback.kind,'spelled');
+    assert.equal(result.feedback.coinGain,0);
+    assert.equal(result.completed,0);
+    assert.notEqual(p.next().word.word,w.word);
+    const transfer = until(v,s => s.word.word === w.word && s.phase === 'quiz');
+    assert.equal(transfer.quizMode,'context');
+    assert.equal(transfer.prompt,w.scene.prompt);
+    assert.notEqual(transfer.prompt,w.example);
+    result = p.answer(w.word);
+    assert.equal(result.feedback.coinGain,2);
+    assert.equal(result.feedback.xpGain,3);
+    assert.equal(p.answer(w.word).roundCoins,result.roundCoins);
+    const complete = until(v,s => s.phase === 'complete');
+    assert.equal(complete.roundCoins,6);
+    assert.equal(complete.roundXp,9);
+  }
+});
+
+test('refresh and stage switches retain the exact listening choices and blending cursor; bad data restarts only the drill', () => {
+  let v = visit(new Map(),1,true);
+  v.p.focusWord('sister','primary');
+  const listening = v.p.next();
+  const options = Array.from(listening.drill.options);
+  v = visit(v.storage,1,true);
+  assert.deepEqual(Array.from(v.p.getState().drill.options),options);
+  v.p.pickPhonics('ɪ');v.p.pickPhonics('s');v.p.pickPhonics('i');
+  const before = v.p.getState().drill;
+  v.p.selectStage('junior');
+  v = visit(v.storage,1,true);
+  const back = v.p.selectStage('primary');
+  assert.equal(back.phase,'blend');assert.equal(back.drill.cursor,2);
+  assert.deepEqual(Array.from(back.drill.tiles),Array.from(before.tiles));
+  assert.equal(v.p.pickPhonics('s','sister',0).drill.cursor,2);
+  assert.equal(v.p.pickPhonics('s').drill.cursor,3);
+  const raw = JSON.parse(v.storage.get(sessionKey));
+  raw.courses.primary.round.steps[0].drill.cursor = -100;
+  v.storage.set(sessionKey,JSON.stringify(raw));
+  assert.equal(v.p.getState().phase,'study');
+  assert.equal(v.p.getState().word.word,'sister');
+  assert.equal(v.p.getState().roundSize,3);
+  assert.equal(v.p.next().phase,'listen');
+});
+
+test('spelling aids and misses defer the same task; transfer retries are free and preserve the 1/3/7/14-day schedule', () => {
+  let v = visit(new Map(),1,true);
+  v.p.focusWord('bike','primary');
+  const target = mode => s => s.phase === 'quiz' && s.word.word === 'bike' && s.quizMode === mode;
+  until(v,target('spell'));
+  assert.equal(v.p.answer('bik').feedback.kind,'wrong');
+  assert.notEqual(v.p.next().word.word,'bike');
+  until(v,target('spell'));v.p.hint();
+  assert.equal(v.p.answer('bike').feedback.kind,'assisted');
+  assert.equal(v.game.getState().vocabularyClaimedToday.includes('bike'),false);
+  assert.notEqual(v.p.next().word.word,'bike');
+  until(v,target('spell'));
+  assert.equal(v.p.answer('BIKE').feedback.kind,'spelled');
+  v = visit(v.storage,1,true);
+  assert.equal(v.p.getState().feedback.kind,'spelled');
+  assert.notEqual(v.p.next().word.word,'bike');
+  const first = until(v,target('context'));
+  assert.equal(v.p.reveal().feedback.coinGain,0);
+  assert.notEqual(v.p.next().word.word,'bike');
+  assert.equal(until(v,target('context')).prompt,first.prompt);
+  assert.equal(v.p.answer('bike').feedback.coinGain,2);
+  assert.equal(until(v,s => s.phase === 'complete').roundCoins,6);
+  let lastPrompt = first.prompt;
+  for (const [today, nextDue] of [[2,5],[5,12],[12,26],[26,40]]) {
+    v.date(today);
+    assert.equal(v.p.stats('primary').due,3);
+    assert.equal(v.p.start().phase,'quiz');
+    const due = until(v,target('context'));
+    assert.notEqual(due.prompt,lastPrompt);
+    lastPrompt=due.prompt;
+    assert.equal(v.p.answer('bike').feedback.coinGain,2);
+    assert.equal(until(v,s => s.phase === 'complete').roundCoins,6);
+    v.date(nextDue-1);
+    assert.equal(v.p.stats('primary').due,0);
+  }
+});
+
+test('a v1 in-flight context, wallet claim and an unaligned word work with the guided scripts loaded', () => {
+  const old = visit();
+  old.p.start();old.p.next();old.p.next();old.p.next();
+  old.p.answer('book');
+  const next = old.p.next();
+  const v = visit(old.storage,1,true);
+  assert.equal(v.p.getState().word.word,next.word.word);
+  assert.equal(v.p.getState().quizMode,'context');
+  assert.equal(v.p.getState().roundCoins,2);
+  assert.equal(until(v,s => s.phase === 'complete').roundCoins,6);
+  const entry = v.p.focusWord('science','junior');
+  assert.equal(entry.word.word,'science');
+  assert.notEqual(v.p.next().phase,'listen');
+  const quiz = until(v,s => s.phase === 'quiz' && s.word.word === 'science');
+  assert.equal(quiz.quizMode,'context');
+  assert.equal(v.p.answer('science').feedback.coinGain,2);
 });

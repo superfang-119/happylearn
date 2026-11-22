@@ -17,6 +17,37 @@
     '<div class="vw-scroll"><div class="vw-body"></div></div><div class="vw-sr" aria-live="polite" id="vw-live"></div>';
   const body=dialog.querySelector('.vw-body'),scroll=dialog.querySelector('.vw-scroll'),live=dialog.querySelector('#vw-live');
   const libraryButton=dialog.querySelector('.vw-library');
+  let playback=0;
+
+  function stopAudio(){
+    playback++;
+    window.LearnVoice?.stop();
+    window.Phonics?.stop();
+    window.WordAudio?.stop();
+  }
+  async function playDrill(key){
+    if(pane!=='learn'||!dialog.open||document.hidden||!state.drill)return;
+    stopAudio();
+    const turn=playback, audio=window.WordAudio, word=state.word.word;
+    const parts=window.VocabIPA[word].parts, cursor=state.drill.cursor;
+    let sounds=[];
+    if(key==='sequence'&&cursor===parts.length)sounds=parts.map(([,sound])=>sound).filter(sound=>sound!=='∅');
+    else if(key==='part'&&parts[cursor])sounds=[parts[cursor][1]];
+    else if(key==='sample-0'||key==='sample-1')sounds=[state.drill.options[Number(key.at(-1))]];
+    else if(key!=='word')return;
+    const status=body.querySelector('[data-drill-status]');
+    if(status)status.textContent='';
+    try{
+      for(const sound of sounds){
+        if(sound==='∅')continue;
+        if(!await audio?.playSound(sound))throw new Error();
+        if(turn!==playback)return;
+      }
+      if((key==='word'||key==='sequence')&&!await audio?.play(word))throw new Error();
+    }catch{
+      if(turn===playback&&status)status.textContent='声音暂时播不出来。可看口形或字母提示继续练习。';
+    }
+  }
 
   function queueChanged() {window.dispatchEvent(new CustomEvent('vocab-progress'));}
   function resetDraft() {draft='';letters=[];chosen=[];fullKeyboard=false;showFirst=false;}
@@ -35,7 +66,9 @@
   }
   function cloze(w) {
     const gap='<span class="vw-blank" aria-label="空格">_____</span>';
-    return '<div class="vw-recall"><b>'+escape(w.zh)+'</b><p lang="en">'+escape(w.prompt).replace(/_+/g,gap)+'</p></div>';
+    if(state.quizMode==='spell')return '<div class="vw-recall"><b>'+escape(w.zh)+'</b></div>';
+    return '<div class="vw-recall"><b>'+escape(w.zh)+'</b>'+(state.sceneHint?'<p>'+escape(state.sceneHint)+'</p>':'')+
+      '<p lang="en">'+escape(state.prompt).replace(/_+/g,gap)+'</p></div>';
   }
   function tiles() {
     const display=letters.map((l,i)=>'<button type="button" data-letter="'+i+'"'+(!fullKeyboard&&chosen.includes(i)?' disabled':'')+' aria-label="'+escape(l===' '?'空格':l)+'">'+escape(l===' '?'␣':l)+'</button>').join('');
@@ -45,8 +78,9 @@
   function quiz() {
     const w=state.word;
     const guided=state.assisted?'<p class="vw-gentle">已用辅助。答对后，这个词还会回来让你独立拼一次。</p>':'';
-    return info('收起词卡，试着拼写',w.theme)+cloze(w)+
-      '<form class="vw-form"><label for="vw-answer">写出空格里的英文</label><div class="vw-entry"><input id="vw-answer" aria-label="拼写答案" name="answer" type="text" lang="en" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" autocorrect="off" maxlength="100" placeholder="输入英文" value="'+escape(draft)+'"'+(letters.length?' readonly':'')+'>'+
+    const spell=state.quizMode==='spell';
+    return info(spell?'独立拼写':'换个情境，想想这个词',w.theme)+cloze(w)+
+      '<form class="vw-form"><label for="vw-answer">'+(spell?'看中文，自己拼出英文':'写出空格里的英文')+'</label><div class="vw-entry"><input id="vw-answer" aria-label="拼写答案" name="answer" type="text" lang="en" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" autocorrect="off" maxlength="100" placeholder="输入英文" value="'+escape(draft)+'"'+(letters.length?' readonly':'')+'>'+
       '<button type="submit" class="vw-button vw-primary">核对</button></div></form>'+
       (showFirst?'<p class="vw-hint">首字母 <b lang="en">'+escape(w.word[0])+'</b></p>':'')+
       (letters.length?tiles():'')+
@@ -54,6 +88,7 @@
   }
   function feedback() {
     const f=state.feedback||{},w=state.word;
+    if(f.kind==='spelled')return info('独立拼对了！')+'<p>'+escape(f.message)+'</p><div class="vw-actions">'+btn('next','继续练习',true)+'</div>';
     const exposed=['correct','revealed','assisted'].includes(f.kind);
     const heading={correct:'独立拼对了！',assisted:'在提示下拼对了',revealed:'再认识一下',wrong:f.reason==='alternative'?'意思对了，换个词想想':'差一点，再找找线索',empty:'先试着写一个词'}[f.kind] || '继续练习';
     const reward=f.coinGain||f.xpGain?'<small class="vw-reward">＋'+escape(f.xpGain||0)+' XP · ＋'+escape(f.coinGain||0)+' 币</small>':'';
@@ -69,8 +104,14 @@
     }
     if(!w) return '<div class="vw-actions">'+btn('start','开始学词',true)+'</div>';
     if(state.phase==='study'){
+      const nextLabel=window.PhonicsDrill?.vowelFor(w.word)?'听音闯关':state.position<state.roundSize?'看下一个词':'收起词卡，开始回想';
       return info('先看词卡',String(state.position)+' / '+String(state.roundSize))+
-        model(w)+'<div class="vw-actions">'+btn('next',state.position<state.roundSize?'看下一个词':'收起词卡，开始回想',true)+'</div>';
+        model(w)+'<div class="vw-actions">'+btn('next',nextLabel,true)+'</div>';
+    }
+    if(state.drill){
+      return info('拼读练习',state.position+' / '+state.roundSize)+
+        '<section class="vw-recall vw-drill">'+window.PhonicsDrill.card(state)+
+        '<p role="status" data-drill-status>'+escape(state.feedback?.message||'')+'</p></section>';
     }
     return state.phase==='quiz'?quiz():feedback();
   }
@@ -78,7 +119,7 @@
   function updateList() {
     const list=body.querySelector('.vw-results'),count=body.querySelector('.vw-resultcount');
     if(!list)return;
-    const term=query.trim().toLowerCase(), activeQuiz=state.phase==='quiz'||(state.phase==='feedback'&&['wrong','empty'].includes(state.feedback?.kind));
+    const term=query.trim().toLowerCase(), activeQuiz=state.phase==='quiz'||!!state.drill||(state.phase==='feedback'&&['wrong','empty','spelled'].includes(state.feedback?.kind));
     // Keep the current closed-book answer out of the library while it is being recalled.
     const filtered=words.filter(w=>w.stage===state.stage && (!activeQuiz || w.word!==state.word?.word) &&
       (!term||[w.word,w.zh,w.theme].some(v=>String(v).toLowerCase().includes(term))));
@@ -97,7 +138,7 @@
   }
   function render(focus=false) {
     if(!dialog.open)return;
-    window.LearnVoice?.stop();window.Phonics?.stop?.();
+    stopAudio();
     dialog.querySelectorAll('[data-word-stage]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.wordStage===state.stage)));
     libraryButton.textContent=pane==='bank'?'回到练习':'查词库';
     libraryButton.setAttribute('aria-label',libraryButton.textContent);
@@ -108,7 +149,7 @@
     if(phonics&&pane==='learn')window.Phonics?.mount?.(phonics,state.word.word);
     if(focus) {
       const el=pane==='bank'?body.querySelector('[data-vw-search]'):
-        body.querySelector('#vw-focus,.vw-info b,.vw-info');
+        body.querySelector('#vw-focus')||body.querySelector('.vw-info b');
       if(el){if(el.tagName!=='INPUT')el.tabIndex=-1;el.focus({preventScroll:true});}
       scroll.scrollTop=0;
     }
@@ -123,6 +164,7 @@
   function goNext(key){
     if(key==='start')state=practice.start();else state=practice.next();
     resetDraft();render(true);queueChanged();
+    if(state.phase==='listen')playDrill('word');
   }
   function makeLetters(word){
     const expected=Array.from(word.toLowerCase()),choices=[...expected];
@@ -157,6 +199,21 @@
   dialog.addEventListener('submit',e=>{e.preventDefault();submit();});
   dialog.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b||b.disabled||busy||!dialog.contains(b))return;
+    if(b.hasAttribute('data-drill-audio')){playDrill(b.dataset.drillAudio);return;}
+    if(b.hasAttribute('data-drill-pick')&&state.drill){
+      state=practice.pickPhonics(b.dataset.drillPick,state.word.word,state.drill.cursor);
+      if(state.feedback?.kind==='retry'){
+        const status=body.querySelector('[data-drill-status]');
+        if(status)status.textContent=state.feedback.message;
+      }else{
+        render(true);
+        if(state.phase==='blend'){
+          const done=state.drill.cursor===window.VocabIPA[state.word.word].parts.length;
+          playDrill(done?'word':'part');
+        }
+      }
+      return;
+    }
     if(b.hasAttribute('data-word-stage')){
       const target=b.dataset.wordStage;if(target===state.stage)return;
       query='';resetDraft();loadStage(target);render();queueChanged();return;
@@ -195,11 +252,13 @@
   });
   dialog.addEventListener('close',()=>{
     if(dialog.open)return;
-    window.LearnVoice?.stop();window.Phonics?.stop?.();resetDraft();
+    stopAudio();resetDraft();
     window.dispatchEvent(new CustomEvent('vocab-visibility',{detail:{open:false}}));queueChanged();
     if(opener?.isConnected&&!opener.closest?.('[hidden],dialog:not([open])'))opener.focus({preventScroll:true});
     opener=null;
   });
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAudio();});
+  window.addEventListener('pagehide',stopAudio);
   window.addEventListener('learn-voice-ready',()=>{if(dialog.open)render();});
   window.WordPracticeUI=Object.freeze({open});
   window.dispatchEvent(new CustomEvent('word-practice-ready'));

@@ -5,11 +5,47 @@
 
   const spellingVariants = {practice:['practise'], maths:['math']};
 
+  // A second, bilingual cloze for transfer and later reviews.
+  const scenes = {
+    egg: ['煎蛋时，小心别把蛋壳掉进锅里。', 'Crack one ___ into the pan.'],
+    bus: ['你在站牌下等车去动物园。', 'We take the ___ to the zoo.'],
+    run: ['小狗追着球飞快地跑。', 'My dog can ___ very fast.'],
+    ask: ['你想知道店里的苹果多少钱。', 'May I ___ how much this apple costs?'],
+    help: ['同桌找不到笔，请你帮忙。', 'Can you ___ me find my pen?'],
+    west: ['傍晚，你指给朋友看太阳落下的方向。', 'The sun sets in the ___.'],
+    clock: ['厨房里的钟响了十二下。', 'The kitchen ___ rings at noon.'],
+    sing: ['过生日时，大家一起唱歌。', 'Let’s ___ a birthday song.'],
+    drink: ['爬山口渴了，你提醒朋友喝水。', 'Stop here and ___ some water.'],
+    school: ['暑假结束后，你背上书包返校。', 'We go back to ___ after the summer break.'],
+    room: ['住旅馆时，你拿到房间钥匙。', 'This key opens my ___ at the hotel.'],
+    eat: ['野餐时，你准备吃一个苹果。', 'I wash my apple before I ___ it.'],
+    read: ['在车站，你想读一读站牌上的字。', 'Can you ___ the words on this sign?'],
+    speak: ['来了新同学，你想知道他会说什么语言。', 'Do you ___ Chinese?'],
+    bread: ['在面包店，你想买一条面包。', 'May I have a loaf of ___?'],
+    sleep: ['露营时，大家晚上睡在帐篷里。', 'We ___ in a tent at night.'],
+    play: ['棋盘摆好了，你邀请同学下棋。', 'Would you like to ___ chess?'],
+    rain: ['刚晾好衣服，外面就下起了雨。', 'Bring the clothes in. The ___ is starting.'],
+    count: ['玩捉迷藏时，你闭上眼睛数到十。', 'Close your eyes and ___ to ten.'],
+    right: ['找房间时，走廊箭头指向右边。', 'Turn ___ here, not left.'],
+    home: ['放学后，你和家人约好在家见。', 'See you at ___ after class.'],
+    bike: ['修车时，你发现自行车链条松了。', 'The chain on my ___ is loose.'],
+    late: ['电影开场了，你才走进影院。', 'The film has started. We are ___.'],
+    safe: ['小猫从车流中获救，现在平安了。', 'The kitten is ___ in my arms now.'],
+    mother: ['小鸭子跟着妈妈游过河。', 'The ducklings swim behind their ___.'],
+    father: ['照片里的是你爸爸，你是他的孩子。', 'I am his child. He is my ___.'],
+    sister: ['你介绍家里刚出生的小妹妹。', 'My parents have a new baby girl. She is my ___.'],
+    friend: ['在夏令营，你交到了一个新朋友。', 'I made a new ___ at camp.'],
+    park: ['你想去公园的长椅上坐一会儿。', 'Let’s sit on a bench in the ___.'],
+    pencil: ['画画前，先削一削铅笔。', 'I sharpen my ___ before I draw.'],
+  };
+
   function group(stage, theme, rows) {
     return rows.map(([word, zh, example, translation, prompt, otherForms = []]) => {
       const aliases = spellingVariants[word] || [];
       const alternatives = otherForms.filter(form => !aliases.includes(form));
-      return {word, zh, stage, theme, example, translation, prompt, aliases, alternatives};
+      const scene = scenes[word];
+      return {word, zh, stage, theme, example, translation, prompt, aliases, alternatives,
+        ...(scene ? {scene: {zh: scene[0], prompt: scene[1]}} : {})};
     });
   }
 
